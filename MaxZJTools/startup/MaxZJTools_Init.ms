@@ -43,152 +43,133 @@
         )
     )
     
+    macroscript MaxZJTools_MeshChecker
+        category:"MaxZJTools"
+        tooltip:"Mesh动画检查工具"
+    (
+        local scriptPath = getThisScriptFilename()
+        local toolPath = getFilenamePath scriptPath + "..\\tools\\MeshChecker.ms"
+        
+        if doesFileExist toolPath then
+        (
+            fileIn toolPath
+        )
+        else
+        (
+            messageBox ("找不到 MeshChecker.ms 文件\n路径: " + toolPath) title:"错误"
+        )
+    )
+    
     macroscript MaxZJTools_About
         category:"MaxZJTools"
         tooltip:"关于 MaxZJTools"
     (
+        local versionStr = "1.0.2"
         local aboutText = "MaxZJTools\n"
-        aboutText += "版本: " + MaxZJTools_Version + "\n\n"
+        aboutText += "版本: " + versionStr + "\n\n"
         aboutText += "专业的3ds Max工具集合\n\n"
         aboutText += "包含工具：\n"
         aboutText += "- 节点重命名工具\n"
-        aboutText += "- 贴图路径重设工具\n\n"
+        aboutText += "- 贴图路径重设工具\n"
+        aboutText += "- Mesh动画检查工具\n\n"
         aboutText += "作者: MaxZJ\n"
-        aboutText += "日期: 2026-01-05"
+        aboutText += "日期: 2026-01-06"
         
         messageBox aboutText title:"关于 MaxZJTools"
     )
     
     format "[MaxZJTools] macroscript 已更新到版本 %\n" MaxZJTools_Version
     
-    -- 清理旧版本菜单的函数（彻底版 - 先卸载macroscript再删除菜单）
+    -- 清理旧版本菜单的函数（安全版本）
     fn CleanupOldMenus menuName = 
     (
-        format "[MaxZJTools] 开始清理流程...\n"
+        format "[MaxZJTools] 检查是否存在旧菜单...\n"
         
-        -- 步骤1：卸载相关的 macroscript
-        format "[MaxZJTools] 步骤1: 卸载旧的 macroscript...\n"
-        local macroNames = #("MaxZJTools_RenameTools", "MaxZJTools_KeyframeTools", "MaxZJTools_About")
-        local unregisteredCount = 0
-        
-        for macroName in macroNames do
+        try
         (
-            try
+            local mainMenuBar = menuMan.getMainMenuBar()
+            if mainMenuBar == undefined then
             (
-                -- 尝试从 MaxZJTools category 卸载
-                macros.unload "MaxZJTools" macroName
-                unregisteredCount += 1
-                format "[MaxZJTools]   卸载 macroscript: %\n" macroName
-            )
-            catch ()
-        )
-        
-        if unregisteredCount > 0 then
-            format "[MaxZJTools] 已卸载 % 个 macroscript\n" unregisteredCount
-        
-        -- 步骤2：删除菜单项
-        format "[MaxZJTools] 步骤2: 删除菜单项...\n"
-        local mainMenuBar = menuMan.getMainMenuBar()
-        local removedCount = 0
-        local maxAttempts = 30
-        local failedPositions = #()
-        
-        format "[MaxZJTools] 当前菜单数: %\n" (mainMenuBar.numItems())
-        
-        -- 循环查找并删除
-        for attempt = 1 to maxAttempts do
-        (
-            local foundIndex = 0
-            
-            -- 查找菜单位置
-            for i = 1 to mainMenuBar.numItems() do
-            (
-                if findItem failedPositions i == 0 then
-                (
-                    local item = mainMenuBar.getItem i
-                    if item != undefined then
-                    (
-                        local itemTitle = try (item.getTitle()) catch (undefined)
-                        
-                        if itemTitle != undefined and itemTitle == menuName then
-                        (
-                            foundIndex = i
-                            exit
-                        )
-                    )
-                )
+                format "[MaxZJTools] 无法获取主菜单栏\n"
+                return 0
             )
             
-            -- 尝试删除找到的菜单
-            if foundIndex > 0 then
+            local removedCount = 0
+            local maxAttempts = 10
+            
+            -- 简单的查找和删除
+            for attempt = 1 to maxAttempts do
             (
-                local beforeCount = mainMenuBar.numItems()
+                local foundIndex = 0
+                local itemCount = 0
                 
-                -- 尝试方法1：直接删除
-                local deleted = false
                 try
                 (
-                    mainMenuBar.removeItem foundIndex
-                    menuMan.updateMenuBar()
-                    local afterCount = mainMenuBar.numItems()
-                    
-                    if afterCount < beforeCount then
-                    (
-                        deleted = true
-                        removedCount += 1
-                        format "[MaxZJTools]   成功删除位置 % 的菜单\n" foundIndex
-                    )
+                    itemCount = mainMenuBar.numItems()
                 )
-                catch (e)
+                catch
                 (
-                    format "[MaxZJTools]   方法1失败: %\n" (e as string)
+                    format "[MaxZJTools] 无法获取菜单数量\n"
+                    exit
                 )
                 
-                -- 如果方法1失败，尝试方法2：通过 unRegisterMenu
-                if not deleted then
+                -- 查找菜单
+                for i = 1 to itemCount do
                 (
                     try
                     (
-                        local item = mainMenuBar.getItem foundIndex
-                        menuMan.unRegisterMenu item
-                        mainMenuBar.removeItem foundIndex
-                        menuMan.updateMenuBar()
-                        
-                        local afterCount = mainMenuBar.numItems()
-                        if afterCount < beforeCount then
+                        local item = mainMenuBar.getItem i
+                        if item != undefined then
                         (
-                            deleted = true
-                            removedCount += 1
-                            format "[MaxZJTools]   方法2成功删除位置 % 的菜单\n" foundIndex
+                            try
+                            (
+                                local itemTitle = item.getTitle()
+                                if itemTitle != undefined and itemTitle == menuName then
+                                (
+                                    foundIndex = i
+                                    exit
+                                )
+                            )
+                            catch()
                         )
                     )
-                    catch (e)
-                    (
-                        format "[MaxZJTools]   方法2也失败: %\n" (e as string)
-                    )
+                    catch()
                 )
                 
-                -- 如果都失败，记录这个位置
-                if not deleted then
+                -- 如果找到了，尝试删除
+                if foundIndex > 0 then
                 (
-                    append failedPositions foundIndex
-                    format "[MaxZJTools]   位置 % 无法删除，跳过\n" foundIndex
+                    try
+                    (
+                        mainMenuBar.removeItem foundIndex
+                        menuMan.updateMenuBar()
+                        removedCount += 1
+                        format "[MaxZJTools] 删除了位置 % 的菜单\n" foundIndex
+                    )
+                    catch
+                    (
+                        format "[MaxZJTools] 无法删除位置 % 的菜单，跳过\n" foundIndex
+                        exit
+                    )
+                )
+                else
+                (
+                    exit
                 )
             )
+            
+            if removedCount > 0 then
+                format "[MaxZJTools] 清理完成，删除了 % 个旧菜单\n" removedCount
             else
-            (
-                exit
-            )
+                format "[MaxZJTools] 未发现旧菜单\n"
+            
+            return removedCount
         )
-        
-        -- 报告结果
-        if removedCount > 0 then
-            format "[MaxZJTools] 成功删除 % 个旧菜单\n" removedCount
-        
-        if failedPositions.count > 0 then
-            format "[MaxZJTools] 警告：有 % 个菜单无法删除\n" failedPositions.count
-        
-        return removedCount
+        catch (e)
+        (
+            format "[MaxZJTools] 清理过程出错: %\n" (e as string)
+            return 0
+        )
     )
     
     -- 创建主菜单
@@ -238,6 +219,12 @@
         textureMenu.addItem textureAction -1
         local textureToolsMenu = menuMan.createSubMenuItem "贴图路径重设" textureMenu
         
+        -- 创建Mesh检查工具子菜单
+        local meshMenu = menuMan.createMenu "Mesh动画检查"
+        local meshAction = menuMan.createActionItem "MaxZJTools_MeshChecker" "MaxZJTools"
+        meshMenu.addItem meshAction -1
+        local meshToolsMenu = menuMan.createSubMenuItem "Mesh动画检查" meshMenu
+        
         -- 添加分隔符
         local separator1 = menuMan.createSeparatorItem()
         
@@ -247,6 +234,7 @@
         -- 将所有项添加到主菜单
         mainMenu.addItem renameToolsMenu -1
         mainMenu.addItem textureToolsMenu -1
+        mainMenu.addItem meshToolsMenu -1
         mainMenu.addItem separator1 -1
         mainMenu.addItem aboutAction -1
         
