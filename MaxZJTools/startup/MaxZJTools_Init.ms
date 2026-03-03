@@ -60,6 +60,23 @@
         )
     )
     
+    macroscript MaxZJTools_BoneOverride
+        category:"MaxZJTools"
+        tooltip:"单骨骼替换工具"
+    (
+        local scriptPath = getThisScriptFilename()
+        local toolPath = getFilenamePath scriptPath + "..\\tools\\BoneOverride.ms"
+        
+        if doesFileExist toolPath then
+        (
+            fileIn toolPath
+        )
+        else
+        (
+            messageBox ("找不到 BoneOverride.ms 文件\n路径: " + toolPath) title:"错误"
+        )
+    )
+    
     macroscript MaxZJTools_About
         category:"MaxZJTools"
         tooltip:"关于 MaxZJTools"
@@ -71,7 +88,8 @@
         aboutText += "包含工具：\n"
         aboutText += "- 节点重命名工具\n"
         aboutText += "- 贴图路径重设工具\n"
-        aboutText += "- Mesh动画检查工具\n\n"
+        aboutText += "- Mesh动画检查工具\n"
+        aboutText += "- 单骨骼替换工具\n\n"
         aboutText += "作者: MaxZJ\n"
         aboutText += "日期: 2026-01-06"
         
@@ -225,6 +243,12 @@
         meshMenu.addItem meshAction -1
         local meshToolsMenu = menuMan.createSubMenuItem "Mesh动画检查" meshMenu
         
+        -- 创建单骨骼替换工具子菜单
+        local boneMenu = menuMan.createMenu "BoneOverride"
+        local boneAction = menuMan.createActionItem "MaxZJTools_BoneOverride" "MaxZJTools"
+        boneMenu.addItem boneAction -1
+        local boneToolsMenu = menuMan.createSubMenuItem "BoneOverride" boneMenu
+        
         -- 添加分隔符
         local separator1 = menuMan.createSeparatorItem()
         
@@ -235,6 +259,7 @@
         mainMenu.addItem renameToolsMenu -1
         mainMenu.addItem textureToolsMenu -1
         mainMenu.addItem meshToolsMenu -1
+        mainMenu.addItem boneToolsMenu -1
         mainMenu.addItem separator1 -1
         mainMenu.addItem aboutAction -1
         
