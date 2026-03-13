@@ -1,8 +1,8 @@
 MaxZJTools - 3ds Max工具集
 ===============================
 
-版本: 1.0.0
-日期: 2026-01-05
+版本: 1.0.2
+日期: 2026-03-13
 
 功能特性：
 ---------
@@ -13,21 +13,29 @@ MaxZJTools - 3ds Max工具集
 
 安装方法：
 ---------
-方法1 - 手动加载（测试用）：
-1. 在3ds Max中，按F11打开MaxScript监听器
-2. 执行：filein "d:\\work\\TA\\Study\\DCC\\3dmaxScripts\\3DMAXScipts\\MaxZJTools\\startup\\MaxZJTools_Init.ms"
+【推荐】一键安装（Install.ms）：
 
-方法2 - 自动启动（推荐）：
-1. 找到3ds Max的Startup文件夹：
-   通常位于：C:\Program Files\Autodesk\3ds Max [版本]\scripts\Startup\
-   或：%userprofile%\AppData\Local\Autodesk\3dsMax\[版本]\ENU\scripts\Startup\
+1. 打开 3ds Max
+2. 将 Install.ms 拖入 3ds Max 视口
+   或菜单：Scripting > Run Script，选择 Install.ms
+3. 出现"安装成功"提示后，重启 3ds Max
+4. 菜单栏将自动出现 MaxZJTools 菜单
 
-2. 在Startup文件夹中创建文件：MaxZJTools_Startup.ms
+说明：
+- 安装脚本会自动识别当前机器的 3ds Max 版本和路径，无需手动填写任何路径
+- 安装内容只有一个小文件（MaxZJTools_Loader.ms）写入 3ds Max 的 startup 目录
+- 本工具包的所有脚本文件保留在原目录，不会被复制或移动
+- 换电脑或重装 3ds Max 后，重新运行 Install.ms 即可
 
-3. 文件内容：
-   filein "d:\\work\\TA\\Study\\DCC\\3dmaxScripts\\3DMAXScipts\\MaxZJTools\\startup\\MaxZJTools_Init.ms"
+卸载方法：
+---------
+删除 3ds Max startup 目录中的 MaxZJTools_Loader.ms 文件：
+  %LOCALAPPDATA%\Autodesk\3dsMax\[版本]\ENU\scripts\startup\MaxZJTools_Loader.ms
 
-4. 重启3ds Max
+手动加载（临时测试用）：
+---------
+在 3ds Max 中按 F11 打开 MaxScript 监听器，执行：
+  fileIn @"[本文件夹路径]\startup\MaxZJTools_Init.ms"
 
 包含工具：
 ---------
@@ -58,14 +66,17 @@ MaxZJTools - 3ds Max工具集
 文件结构：
 ---------
 MaxZJTools/
+├── Install.ms                  # 一键安装脚本（首次使用时运行）
+├── Readme.txt                  # 本文件
 ├── startup/
-│   └── MaxZJTools_Init.ms      # 主初始化脚本
+│   └── MaxZJTools_Init.ms      # 主初始化脚本（由安装脚本自动引导）
 ├── tools/
 │   ├── RenameTools.ms          # 重命名工具
-│   └── KeyframeTools.ms        # 关键帧工具
-├── config/
-│   └── version.ini             # 版本信息
-└── README.txt                  # 本文件
+│   ├── ReSetTexturesPath.ms    # 贴图路径重设工具
+│   ├── MeshChecker.ms          # Mesh动画检查工具
+│   └── BoneOverride.ms         # 单骨骼替换工具
+└── config/
+    └── version.ini             # 版本信息
 
 技术支持：
 ---------

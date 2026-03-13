@@ -7,14 +7,15 @@
 (
     global MaxZJTools_MenuName = "MaxZJTools"
     global MaxZJTools_Version = "1.0.2"
+    -- 在 startup 脚本执行时计算工具目录，避免 macroscript 内 getThisScriptFilename() 返回 usermacros 路径
+    global MaxZJTools_ToolsPath = getFilenamePath (getThisScriptFilename()) + "..\\tools\\"
     
     -- 定义菜单动作（总是重新定义，确保使用最新版本）
     macroscript MaxZJTools_RenameTools
         category:"MaxZJTools"
         tooltip:"节点重命名工具"
     (
-        local scriptPath = getThisScriptFilename()
-        local toolPath = getFilenamePath scriptPath + "..\\tools\\RenameTools.ms"
+        local toolPath = MaxZJTools_ToolsPath + "RenameTools.ms"
         
         if doesFileExist toolPath then
         (
@@ -30,8 +31,7 @@
         category:"MaxZJTools"
         tooltip:"贴图路径重设工具"
     (
-        local scriptPath = getThisScriptFilename()
-        local toolPath = getFilenamePath scriptPath + "..\\tools\\ReSetTexturesPath.ms"
+        local toolPath = MaxZJTools_ToolsPath + "ReSetTexturesPath.ms"
         
         if doesFileExist toolPath then
         (
@@ -47,8 +47,7 @@
         category:"MaxZJTools"
         tooltip:"Mesh动画检查工具"
     (
-        local scriptPath = getThisScriptFilename()
-        local toolPath = getFilenamePath scriptPath + "..\\tools\\MeshChecker.ms"
+        local toolPath = MaxZJTools_ToolsPath + "MeshChecker.ms"
         
         if doesFileExist toolPath then
         (
@@ -64,8 +63,7 @@
         category:"MaxZJTools"
         tooltip:"单骨骼替换工具"
     (
-        local scriptPath = getThisScriptFilename()
-        local toolPath = getFilenamePath scriptPath + "..\\tools\\BoneOverride.ms"
+        local toolPath = MaxZJTools_ToolsPath + "BoneOverride.ms"
         
         if doesFileExist toolPath then
         (
