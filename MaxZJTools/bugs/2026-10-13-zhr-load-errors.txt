@@ -1,0 +1,44 @@
+ZHeightToVertexRed 加载与菜单重载错误
+===================================
+
+日期：2026-10-13
+状态：fixed_pending_validation（源码修复及静态回归完成，宿主待复验）
+影响版本：MaxZJTools v1.2.0 / ZHeightToVertexRed v1.1.0
+修复版本：MaxZJTools v1.2.1 / ZHeightToVertexRed v1.1.1
+来源：用户提供的 MAXScript Editor / Listener 截图，当前工作区源码。
+
+现象与根因
+1. ZHeightToVertexRed.ms 的 local mapped = #() 报“at mapped, expected name”。
+   mapped 是 MAXScript 保留关键字，不能作为变量名；上轮只有括号检查，未覆盖名称合法性。
+2. Init 输出无法删除位置 18 的菜单，随后初始化失败。
+   mainMenuBar.removeItem foundIndex 把整数传给要求 menuItem 接口的 API；
+   内层 catch 吞掉异常，removedCount 仍为 0，继而错误打印“未发现旧菜单”。
+3. 截图更早出现的 readLine undefined 没有指向本工具，当前三个目标脚本没有 readLine 调用，
+   不能据此认定属于本次修改。该条不纳入已修复结论。
+
+修改
+- ZHR_MapHeights 的结果数组改名 mappedHeights，更新所有读写和返回引用。
+- 灰度条局部变量 gray 改名 rampValue，避开预定义颜色名；这是命名防冲突，不声称已复现另一个错误。
+- CleanupOldMenus 倒序遍历，只删除标题匹配的本工具菜单；使用 removeItemByPosition。
+- 删除后核对数量递减，异常直接交给初始化错误处理；不再吞错或误报“未发现”。
+- 补 tests/Test-MaxScriptSource.ps1，以及宿主 smoke 脚本的双次重载/单菜单/全部动作检查。
+- 补丁版本及更新日志同步，功能参数和烘焙公式保持不变。
+
+实际验证
+- 修改前运行 Test-MaxScriptSource.ps1：退出码 1，准确报出 mapped 声明和 removeItem 整数参数两项。
+- 修改后及补齐 smoke 用例后运行：退出码 0，3 个脚本的定向规则通过。
+- git diff --check 通过。关键字与 API 签名已核对 Autodesk 官方文档。
+- 该检查不是完整解析器；只覆盖指定文件的直接声明、括号配对和本次菜单参数误用。
+- 本轮未重新运行 Max：上一轮独立批处理已因 License Error: ServiceErrorUserCancel 失败。
+  未操作用户的 Max 场景；新增宿主用例尚未执行。
+
+复验步骤
+1. 在 Max 中通过 Scripting > Run Script 从磁盘运行 startup/MaxZJTools_Init.ms。
+2. 再运行一次 Init，检查菜单只有一份，保留 5 个工具和 About。
+3. 从菜单打开 Z 高度工具，确认不再报 mapped 语法错误；重复打开、关闭窗口。
+4. 在独立空场景执行 tests/ZHeightToVertexRed_Smoke.ms，查看最终 RESULT，确认映射/通道结果。
+无需重启；Init 文件与工具脚本均要使用磁盘上的 v1.2.1 修复版。
+
+依据
+https://help.autodesk.com/cloudhelp/2024/ENU/MAXScript-Help/files/MAXScript-Language-Reference/Reserved-Keywords-Symbols/GUID-E6FD6664-B41B-4FF4-9086-D0EAAC6BD6A8.html
+https://help.autodesk.com/cloudhelp/2021/ENU/3DSMax-MAXScript/files/GUID-1374EDCA-CC8B-4B43-81A5-6ED98DBE01D3.htm

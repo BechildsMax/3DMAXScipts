@@ -1,0 +1,30 @@
+﻿{
+    "packageId":  "AssetsMG.VertexColorWriter",
+    "packageVersion":  "1.0.0",
+    "toolFeatureVersion":  "1.4.0",
+    "sourcePackageVersion":  "MaxZJTools 1.7.0",
+    "created":  "2026-10-13",
+    "targetHost":  "3ds Max 2022",
+    "namespace":  "AssetsMG.Tools.VertexColorWriter",
+    "maxscriptPrefix":  "AssetsMG_VCW_",
+    "entry":  "Entry.ms",
+    "launch":  "Launch.ms",
+    "sourceHashes":  {
+                         "tools\\VertexColorWriter.ms":  "91FE70D4AF7AC88660397162AF7DF309331D595DAD340D59380C5BD4513138DC",
+                         "tools\\VertexColorWriterUI.cs":  "14A39ED1A4176D398567BB7C954DF3CBFDBCA7F0E7E43DFA3CE254A573FBB2FC",
+                         "tools\\VertexColorWriterTexture.cs":  "F19D3FB959128AC1F83074C5E3558F80E8777A4C13C0FF7E5DAC5AE6FB00A69A",
+                         "tools\\VertexColorWriter-使用说明.txt":  "2F600A01AD53D38A3AF1AE8CE3FF56DA5AD5A0E93E7A2F58F8348846CC029AD0",
+                         "tests\\Test-VertexColorWriterUI.ps1":  "9E18B42BF17D6EE7E46AC45D7D45EA9E4EAE5CE804F67E9F5CC22460BC7CD4B4",
+                         "tests\\Test-VertexColorWriterTexture.ps1":  "BC3D989291D00B8E3D789D0404F43E98AB794AFF834A1CC8A36395D214C651A0",
+                         "tests\\VertexColorWriter_Selection_Smoke.ms":  "BCB82BDCB1D269345968ADA966567198FCAC88EDEC3F01F745F4C4AF8C7B5D26",
+                         "tests\\VertexColorWriter_Texture_Smoke.ms":  "E3514F31EB4138041218AB48E68C9913B5CAD6B42E98D77FE6AAD96769281554",
+                         "tests\\VertexColorWriter_Height_Smoke.ms":  "D86D8D03780953A9B5ECD243B799A6F8CD7002ECC5CF47B83B66459C6A89E995"
+                     },
+    "validation":  {
+                       "independentDate":  "2026-10-13",
+                       "uiChecks":  44,
+                       "textureChecks":  41,
+                       "typeIsolation":  "Two C# namespaces instantiated together; state/disposal isolation passed.",
+                       "host":  "3ds Max coexistence, mesh/Undo/export pending; no host PASS evidence."
+                   }
+}

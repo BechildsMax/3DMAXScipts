@@ -1,0 +1,106 @@
+﻿VertexColorWriter 图标资源
+=========================
+
+# 项目概览
+
+随 MaxZJTools v1.6.0 / VertexColorWriter v1.3.0 提供。
+范围为当前 VertexColorWriter 面板及入口，其他工具保持原状。
+参考 C:/LGPublic/Scriptlibrary/max/icons 的绿色/白色、大色块、粗轮廓扁平风格。
+主图为原创“彩色顶点网格 + 画笔”，使用 imagegen 内置工具生成，未使用 CLI/API 路径。
+参考库只读，未复制或修改其中的原图。生成后的原稿完整保存到本目录 source/。
+
+# 功能说明与使用流程
+
+## VertexColorWriter 图标
+
+### 菜单/入口
+
+MaxZJTools > 定点色写入工具 > 对应动作。
+MaxZJTools_VertexColorWriter 与旧 MaxZJTools_ZHeightToVertexRed 动作使用同一个 iconName。
+自定义工具栏可添加 MaxZJTools 类别中的 VertexColorWriter 动作；不自动创建额外工具栏。
+
+### 用途
+
+主图用于写入按钮和菜单/工具栏动作；颜色点表现顶点色，画笔表现写入。
+模式、分区和次级按钮使用 C# 几何绘制的小图标：高度、填色、贴图、RGBA、标尺、选图、重读和明细。
+文字保留，图标只辅助识别，无颜色写入逻辑变化。浅主题主图用深灰轮廓，深主题主图用白色轮廓。
+
+### 流程图
+
+<whiteboard type="mermaid">
+flowchart TD
+    A[保留完整工具包及 icons] --> B[运行菜单初始化脚本]
+    B --> C{本工具用户图标与随包内容一致}
+    C -->|否| D[复制本工具 PNG 并刷新缓存]
+    C -->|是| E[复用已注册资源]
+    D --> F[打开工具 检查图标与文字]
+    E --> F
+    F --> G{主图 PNG 可读取}
+    G -->|是| H[显示主图及内置面板符号]
+    G -->|否| I[保留内置写入符号与文字]
+    H --> J[正常配置并执行写入 按需保存场景]
+    I --> J
+</whiteboard>
+
+### 参数说明
+
+| 资源/入口 | 作用、格式与范围 | 默认行为 | 输出影响、约束与撤销 |
+|---|---|---|---|
+| VertexColorWriter.png | 512×512 透明 PNG，供脚本库封面使用 | 不写入公共脚本库 | 可手工引用；只影响外观，无场景修改，无需撤销 |
+| Dark / Light | 两套透明 PNG；每套 16/24/30/32/36/48/64 像素 | Max 按主题/显示环境选择入口图标，深色面板取 Dark 32 | 文件名固定，不随工具显示名称变化；不修改场景 |
+| source | 两张 imagegen 原稿，原尺寸、原 Alpha | 运行时不读取 | 用于重新打包；无需安装到用户图标目录 |
+| Build-Icons.ps1 | 无必填参数，Windows PowerShell 5.1 运行 | 从本目录 source 原稿重采样到指定尺寸 | 覆盖本目录列出的派生 PNG；不改变源图，不扫描外部目录、不修改场景；可从原稿重新生成 |
+| LoadToolIcon | UI 内部入口，输入包内 icons 路径 | 失败保留内置图标；成功复制进内存，释放文件锁 | 无美术可调参数；关闭面板释放图片，不影响模型和 Undo |
+
+### 输出结果
+
+包内输出为 14 张入口图标及一张 512px 库图，source 中保留两张原稿。
+初始化只将 14 张入口图标复制到 getDir #userIcons 返回的目录下：
+  Dark/MaxZJTools/VertexColorWriter_{尺寸}.png
+  Light/MaxZJTools/VertexColorWriter_{尺寸}.png
+比较文件内容；一致不覆盖，不同才更新。相同文件名位于不同主题目录时分别处理。
+不扫描公共库、不做关键字匹配、不复制模型贴图；缺失资源记录提示，工具主流程继续运行。
+
+### 注意事项与已知限制
+
+- 独立 WinForms 面板已渲染检查；Max 菜单与工具栏图标的实际显示仍待宿主验证。
+- 入口图标绑定的是叶级宏动作，顶层 MaxZJTools 菜单和工具子菜单未自定义图片。
+- 不修改 Max 安装目录，也不依赖 C:/LGPublic 路径；移动工具包后重新加载即可使用包内资源。
+- 尚未在真实 Max 高 DPI、多显示器环境验收。旧工具栏若缓存图标，可重启 Max 刷新。
+
+# 安装与使用
+
+保留 icons/Dark 与 icons/Light 的结构。已有安装重跑 startup/MaxZJTools_Init.ms，再关闭/打开工具面板。
+首次安装仍运行 Install.ms 注册 Loader；图标复制由初始化阶段完成。
+卸载仍删除 Loader 并重启；如需清理图标，另行移除上述用户目录下属于 VertexColorWriter 的 PNG。
+重新打包可执行：powershell.exe -NoProfile -File icons/Build-Icons.ps1。
+
+# 技术与兼容性
+
+目标 3ds Max 2022，使用 iconName 和 #userIcons 的 Dark/Light 路径，未采用旧 BMP 图集。
+入口规则依据 Autodesk Defining Macro Scripts：
+https://help.autodesk.com/cloudhelp/2023/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Creating-MAXScript-Tools/GUID-6E21C768-7256-4500-AB1F-B144F492F055.html
+面板使用 System.Drawing/WinForms；源码符号由 Graphics 绘制，主图从随包 PNG 加载。
+Build-Icons.ps1 仅做透明 PNG 尺寸打包；没有手工重绘或改色生成后的主图。
+
+生成方式与最终提示词（内置 imagegen，无 CLI；英文保留用于复现）
+
+初始主图提示词：
+Create one production UI icon for a 3ds Max artist tool called VertexColorWriter. No words, letters, numbers, captions or surrounding UI. Style: bold flat pictogram, simple chunky geometric shapes, strong silhouette and generous open spaces, like a classic DCC script library icon; green (#76B747) and bright white are dominant, with small clear red and blue vertex accents. Use a square 1:1 canvas and genuinely transparent background; icon occupies central 80% with equal safe margins. Subject: a simple four-corner diamond-shaped polygon mesh, white thick edges with one internal diagonal, round colored vertex nodes (green/red/blue, plus a white node indicating alpha), and a compact green stylus or brush overlapping the lower right edge clearly writing color onto one vertex. At most four nodes, no dense wireframe. All lines and nodes thick enough to read when scaled to 32 pixels. Flat 2D solid fills with clean precise edges, no shadows, no gradients, no 3D, no glossy materials, no border, no enclosing app tile, no watermark. Keep the glyph readable against a dark gray panel and a light gray toolbar. This is a new original icon inspired by a green-and-white flat tool library.
+
+深色主图最终修订提示词：
+Clean up this UI icon as a production flat vector-style pictogram. Preserve the same overall diamond mesh, 4 round colored vertices and green paintbrush composition. Critical corrections: remove EVERY speckle, white fleck, ragged texture, ghost pixel and noisy patch in the transparent background and in the empty interior triangles. The spaces inside the mesh must be completely uniformly transparent, as must the exterior. Make edges perfectly smooth geometric boundaries. Use pure solid flat white for mesh strokes and circle outlines, pure solid green #76B747, solid red #ED4747, solid blue #458FEC for nodes, no gradient whatsoever. No shadow or glow, no texture, no grain. Shrink composition slightly to leave an even 12% transparent margin on every side, brush included, so it works in a 32px toolbar button. Deliver just the same cleaned icon, no text and no background.
+
+浅色主图提示词（以深色主图为编辑输入）：
+Create the light-toolbar companion version of this exact VertexColorWriter icon. Preserve its composition, vertex node positions, paintbrush silhouette and proportions. Replace ALL white mesh connecting strokes and white outer circle outlines with a solid dark charcoal #454B53. Replace the all-white right vertex fill with light gray #AEB8C2, with dark charcoal outer outline. Replace white parts of the green brush handle and outline with the same dark charcoal. Keep the red, green, blue vertex fills and green brush. Use clean flat solid colors, smooth geometric edges, no grain, no texture, no shadow. Empty areas both outside and inside the mesh remain transparent. Do not add any words or letters. This companion asset must read clearly at 24-48 pixels on a light gray toolbar. Square transparent PNG.
+
+# 发布与更新规则
+
+本次为新增外观资源，工具包 minor 升至 1.6.0，工具升至 1.3.0。
+替换图片后重跑 Build-Icons.ps1、初始化脚本并重开面板；用户目录副本按内容更新。
+发布检查：资源尺寸/Alpha、C# 编译、三模式布局、缺图回退、关窗释放与 Max 加载/卸载。
+当前独立 UI 32 项及定向静态检查通过；Max 受此前许可证错误影响，入口显示/缓存/安装卸载尚待验证。
+
+# 更新日志
+
+2026-10-13 · v1.6.0 · 新增彩色顶点网格与画笔主图、深浅主题多尺寸入口 PNG 及绿色面板符号 · VertexColorWriter 面板、宏动作、用户图标注册与包内资源 · 重载 Init 并重开面板；缓存未刷新时重启

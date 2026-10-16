@@ -1,0 +1,397 @@
+﻿AssetsMG VertexColorWriter v1.0.0 独立接入包记录
+================================================
+日期：2026-10-13（Asia/Shanghai）
+模式：Lite，extension；沿用本模块记录。授权依据：用户准备把工具交给 AssetsMG 集成，要求避免与 MaxZJTools 冲突。
+完成范围：独立接入副本、加载接口、资源、说明、打包生成器及独立验证；未连接/写入 AssetsMG 项目或外发文件。
+
+- [x] 快扫确认冲突：VCW/ZHR 全局、窗口重载与回调、C# 类型、修改器名称识别、入口图标与 MaxZJTools 菜单安装器。
+- [x] L1 方案：保留原生产源码，集成副本统一 AssetsMG_VCW_* / AssetsMG.Tools.VertexColorWriter。
+- [x] L2 生成器 integrations/AssetsMG/Build-Package.ps1 定向转换；删除旧 ZHR 兼容别名与旧修改器识别。
+- [x] 独立 AssetsMG 修改器标识、临时节点、日志与撤销组、Dark/Light 图标分组；不自动注册菜单/宏或写用户目录。
+- [x] Entry.ms 仅定义 AssetsMG_VCW_Open()/Close()；Launch.ms 用于手动启动。相对包内资源路径随目录迁移。
+- [x] README 包含入口、完整功能参数、流程、加载/关闭、宿主目标、外部资源与已知颜色显示问题。
+- [x] 保留原模型数据语义：同模型两版仍共享 map 0 / -2；不同版本不互相复用/删除修改器，不承诺独立颜色。
+- [x] 生成 dist/AssetsMG-VertexColorWriter-1.0.0.zip，共 31 文件；manifest 记录来源与校验和。
+- [x] 原生产输入 SHA-256 在生成前后相同，原菜单/版本未改。
+- [ ] Max 2022 实际同进程双版加载/重载/关闭、视口回调、局部写入和 Undo 需运行包内宿主用例。
+- [ ] AssetsMG 自身菜单接入、焦点与键盘全局状态、DPI、安装/卸载及导出回读由目标环境验收。
+
+证据
+- runtime（Windows PowerShell 5.1 / .NET）：包标识/完整清单/校验和/旧名字残留检查通过。
+- runtime（独立 C#）：两份生产界面命名空间在同进程编译、分别实例化，配置互不改变，释放 AssetsMG 不释放原版。
+- runtime（集成副本）：UI 44 项通过、贴图读取采样 41 项通过；本轮实际重新执行，非沿用历史结果。
+- static：所有包内 .ms 定向关键字/括号检查通过；不等于 MAXScript 编译器验收。
+- resource：压缩包 31 文件，逐项解压流 SHA-256 与验证过的磁盘包一致；未缺入口、C# 或 PNG。
+- unknown：宿主批处理此前 License Error: ServiceErrorUserCancel，本轮未重复尝试；未操作用户现有 Max 场景。
+- known limitation：颜色显示差异仍是 investigating，随包包含调查；本轮未修改颜色写入数值。
+
+交付：独立副本可审阅与交给 AssetsMG 接入，真实宿主验收待完成，不声称已在 AssetsMG 中部署。
+维护：优先修改原工具，再运行生成器生成新集成版本；新增稳定接口变更按独立包 SemVer 处理。
+2026-10-13 · v1.0.0 · AssetsMG 独立命名和接入包 · 生成器/副本/资源/说明/回归，原工具代码不变 · 加载 Entry 后 Open，通常无需重启
+
+以下为原工具历史记录。
+----------------------------------------------------------------------------
+MaxZJTools v1.7.0 / VertexColorWriter v1.4.0 局部顶点填充记录
+===========================================================
+日期：2026-10-13（Asia/Shanghai）
+模式：Lite，extension；延续本文件，不新建模块工作区。
+授权：用户要求“工具增加 网格 中 选择的顶点的填充”。
+状态：代码与说明已完成；独立 UI 与定向静态检查通过，Max 内局部几何/选择恢复/Undo 待验证。
+
+需求与实现
+- [x] 写入范围增加“整个模型 / 选中顶点”，默认整模型，保持现有批处理入口。
+- [x] 高度渐变、固定颜色、贴图三种模式均使用同一顶点范围；RGBA 勾选独立生效。
+- [x] 局部范围要求单选几何模型、顶点模式及 Editable Mesh / Poly 或 Edit Mesh / Poly 编辑层级。
+- [x] 仅统计和写入连接面的硬选择点；不使用软选择权重，不自动将边/面选择转为顶点。
+- [x] 定时显示选点数量；空选、错误层级、多选禁用按钮；点击时再次捕获，不能回退为全模型。
+- [x] 在离开顶点模式之前捕获求值网格与选择；进入写入后核对顶点位置与面顺序，防止转换错位。
+- [x] 选点层上方只允许工具自己的转换和颜色修改器；其他修改器提示在栈顶增加编辑层后选点。
+- [x] 未选 RGB / Alpha 按面角保留，保留颜色和 UV 接缝；新建 RGB 未选值为 0，新建 Alpha 未选值为 1。
+- [x] 高度沿用整模型底部与统一跨度；选点数量不影响高度基准。越界计数只计实际写入点/面角。
+- [x] 重复写入复用栈顶工具修改器；尽量恢复原活动修改器及子对象层级；快照结束后释放。
+- [x] 维持 12 pt 字号，面板增加范围行，高度由 760 增至 808；860 宽度及图标布局保留。
+- [x] 同步包版本、工具版本、Readme、参数表、流程图、兼容性与更新日志。
+- [ ] 目标 Max 2022 中执行原有回归及 VertexColorWriter_Selection_Smoke.ms，实际检查选择传播与栈恢复。
+
+验证证据与边界
+- runtime（独立 WinForms）：Test-VertexColorWriterUI.ps1 编译生产 C#，44 项通过。
+  新增空选禁用、存储选择但非顶点模式、多模型/混合选择、三模式保留范围、忙碌锁及恢复批处理。
+- visual：独立真实控件 selected-vertices.png 已查看，范围/计数/通道/颜色/主按钮未重叠，保留原字体。
+  输出：%TEMP%/VertexColorWriter-preview/。这不是 Max 内截图，也不证明 Max DPI 或 .NET 互调已通过。
+- static：Test-MaxScriptSource.ps1 含新增局部选择 smoke，定向关键字/括号/菜单参数检查通过；不是 Max 编译器。
+- core：新增宿主脚本覆盖 RGB/A 局部保留、分区连续填写、Undo、整模型底部、空选与陈旧快照拒绝、
+  新通道默认值、贴图接缝及实际 UI 捕获/层级恢复、Editable Poly/Edit Poly 与上方拓扑修改器阻挡。
+  脚本已编写但未运行。原整模型 RGBA、贴图和高度回归也需重新在宿主执行。
+- unknown：此前独立 Max 批处理因 License Error: ServiceErrorUserCancel 阻断，本轮没有重试同一阻挡。
+  没有操作当前 Max 会话、修改用户场景或保存/导出文件。图片读取器未变，不重复执行其历史 41 项检查。
+
+接入
+- tools/VertexColorWriter.ms：VCW_CheckVertexContext / UsedVertexSelection / CaptureVertexSelection，
+  BakeNode 的 selectedOnly 与 selectionSnapshot 可选参数、按几何顶点限制面角写入、选择读数与恢复。
+- tools/VertexColorWriterUI.cs：范围控件、SetVertexSelection、计数/禁用/按钮与即时刷新请求。
+- tests/VertexColorWriter_Selection_Smoke.ms：必须在新建空场景中运行；仅创建/清理自有节点与测试图片。
+- 回退：界面切回“整个模型”继续批处理；场景写入可 Ctrl+Z。没有新增插件、依赖或安装器步骤。
+
+技术依据（Autodesk 官方 API）
+https://help.autodesk.com/cloudhelp/2016/ENU/MAXScript-Help/files/GUID-BD473113-389F-4C96-BE07-217FF75796EF.htm
+https://help.autodesk.com/cloudhelp/2021/ENU/3DSMax-MAXScript/files/GUID-97584058-42D1-4B06-948D-77FE552F43F0.htm
+https://help.autodesk.com/cloudhelp/2019/ENU/3DSMax-MAXScript/files/GUID-BAC3CC23-9D1D-44CE-B4AF-C0CEBDD7099E.htm
+
+更新：重载 startup/MaxZJTools_Init.ms 并重开 VertexColorWriter，通常无需重启。
+2026-10-13 · v1.7.0 · 三模式新增选中顶点局部 RGBA 写入与范围提示 · 核心、UI、回归和说明 · 重载并重开，无需重启
+
+以下为历史版本记录；各验证结论仅对应当次代码与环境。
+----------------------------------------------------------------------------
+MaxZJTools v1.6.0 / VertexColorWriter v1.3.0 UI 图标记录
+=====================================================
+日期：2026-10-13（Asia/Shanghai）
+模式：Lite，extension；继续使用本文件维护实现/验收状态。
+授权：用户要求参考 C:/LGPublic/Scriptlibrary/max/icons，并确认“当前 VertexColorWriter 面板及入口”。
+状态：资源制作与接入完成；独立 UI/资源检查通过，Max 内入口显示与注册仍待运行。
+
+实现
+- [x] 查看参考库的高度渐变顶点色、材质上传、顶点投影、重命名等图标，采用绿色/白色扁平风格。
+- [x] 使用 imagegen 内置工具制作“彩色顶点网格 + 画笔”主图及深灰轮廓浅色版；透明原稿保存在 icons/source。
+- [x] 生成 512px 脚本库图、Dark/Light 各 7 个尺寸 PNG（16/24/30/32/36/48/64），完整提示词见 icons/说明.txt。
+- [x] 主图接入写入按钮；模式、分区、选图、重读、明细使用同风格 C# 几何小图标，保留文字和原字体。
+- [x] UI 可选 LoadToolIcon，缺图时保留内置写入符号；复制位图到内存，关闭面板释放全部图片。
+- [x] 新旧 VertexColorWriter 宏动作设置 iconName；初始化把 14 个 PNG 按主题注册到 #userIcons 的 MaxZJTools 子目录。
+- [x] 仅在内容不同时更新本工具同名图标，成功复制后刷新缓存；缺图/无写入权限只记日志，不中断工具初始化。
+- [x] 工具包版本、工具版本、依赖、安装/卸载、缓存重启说明、流程图和日志同步。
+- [ ] 真实 Max 内入口图标、用户目录复制、主题切换、缓存刷新、DPI 与安装/卸载验收。
+颜色写入/贴图采样/高度测量逻辑未改变；没有修改公共参考图标库，没有在当前 Max 会话执行安装。
+
+证据
+- runtime（独立 WinForms）：实际 C# 源码编译成功，Test-VertexColorWriterUI.ps1 共 32 项通过。
+  含新增可选图标加载和缺图回退，原三模式、通道选择、模型高度、选择/禁用/关闭检查保留。
+- visual：实际控件渲染 default.png、rgba-gradient.png、solid-color.png、texture.png；检查默认与贴图布局，
+  图标和文字无重叠/截断；已将宽写入按钮恢复居中文字，图标在左。
+  输出：C:/Users/yuanzijian/.codex/visualizations/2026/10/12/01a12fbd-afb3-73b3-9696-ebb7188c600c/VertexColorWriter-icons。
+  这是独立 UI 预览，不是 Max 内截图；生成图透明边缘在实际面板合成下检查。
+- resource：14 张入口 PNG 尺寸正确、四角透明且有可见图形；两张原稿随包保留，无公共路径运行依赖。
+- static：Test-MaxScriptSource.ps1 定向关键字/括号/已知菜单参数检查通过；不是宿主编译器。
+  git diff --check 通过。修改源码/说明统一 UTF-8 BOM + CRLF。
+- unknown：此前 Max 批处理 License Error: ServiceErrorUserCancel 仍是宿主验收限制；本轮未重试相同阻挡。
+  本轮没有重跑采样测试，因为生产采样与写入逻辑无变化；v1.5.0 的 41 项独立采样结果仅作为历史证据。
+
+接入与文件
+- startup/MaxZJTools_Init.ms：RegisterVertexColorWriterIcons、两处 iconName、v1.6.0。
+- tools/VertexColorWriter.ms：打开面板后读取包内主图；其他算法不变。
+- tools/VertexColorWriterUI.cs：PanelGlyphs、Card 头部、ButtonGlyph、LoadToolIcon、Dispose。
+- icons/Build-Icons.ps1：仅尺寸打包，可从 source 重新生成派生图标，不改原稿。
+- icons/说明.txt：完整生成提示词、图标清单、入口、资源路径、流程与已知限制。
+
+技术依据（Autodesk）
+https://help.autodesk.com/cloudhelp/2023/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Creating-MAXScript-Tools/GUID-6E21C768-7256-4500-AB1F-B144F492F055.html
+https://help.autodesk.com/cloudhelp/2018/ENU/MAXScript-Help/files/GUID-E5EE5B39-C8F2-4AB5-A890-C39C5EFB39E5.htm
+
+更新：保留完整 icons 目录，重载 Init 并重开面板；旧工具栏若仍缓存图标，重启 Max。
+以下为历史记录，各次证据对应当时版本。
+----------------------------------------------------------------------------
+MaxZJTools v1.5.0 / VertexColorWriter v1.2.0 贴图写入记录
+=====================================================
+日期：2026-10-13（Asia/Shanghai）
+范围：新增第三种写入模式，按图片和模型已有 UV 向选中的 RGBA 分量写值。
+状态：实现与独立采样/UI 验证完成；MAXScript 宿主运行及导出验收待执行。
+模式：Lite，extension；延续本文件，未创建额外模块工作区。
+授权依据：用户询问贴图写入并确认“可以 按照你说的改”。
+
+实现与影响范围
+- [x] 三模式切换：高度渐变、固定颜色、贴图写入；原 12 pt 字体、纵向预览和高度标尺保留。
+- [x] 贴图模式显示图片选择/重新读取、UV 通道 1~99、用途、采样、越界选项和原图预览。
+- [x] 共用 RGBA 勾选，切换模式保留选择；完整 RGB 需勾选 RGB，A 独立写入 map -2。
+- [x] UV 按面角读取并按 UV 顶点缓存；接缝的不同 UV 独立采样，不改变几何拓扑或源 UV。
+- [x] 未选颜色分量沿用原值；保留现有工具栈复用、批次 Undo、失败对象新增修改器清理和回读校验。
+- [x] 回读额外比较使用的源 UV 面角值；缺 UV/无效 UV 令该对象失败，批次继续。
+- [x] PNG/JPG/BMP 由 System.Drawing 解码，TGA 内置读取器支持 24/32 位真彩及 8 位灰度、RLE 和四种原点。
+- [x] 颜色模式 sRGB 转线性后滤波，遮罩原值；Alpha 不转伽马，保留透明像素下的 RGB。
+- [x] 双线性/最近点、截取/平铺，负 UV 与边缘相邻像素处理；无 Alpha 的图片写 A=1。
+- [x] 图片只读且及时释放文件句柄；UI 保留不可变像素缓存，关闭释放；重新读取失败清除旧缓存并禁用写入。
+- [x] 单边上限 8192、总像素上限 16777216；拒绝 16 位 PNG、预乘 Alpha TGA 与不支持格式，错误可查看明细。
+- [x] 增加同目录依赖 VertexColorWriterTexture.cs；版本、安装依赖、旧入口提示、流程图、参数表及日志同步。
+- [ ] Max 内 C#/.NET 互调、UV 接缝真实写入、Alpha 粘贴、Undo、窗口开关、DPI、安装卸载及导出回读。
+不自动展开/细分、不求值材质/灯光、不处理 UDIM/HDR/EXR、不自动保存场景或修改源图片。
+外部图片仅在重新烘焙时需要；已有结果保存在工具修改器数据，不随导出自动打包图片。
+
+已执行证据
+- runtime（独立生产读取器）：Windows PowerShell 5.1，tests/Test-VertexColorWriterTexture.ps1：41 项通过。
+  覆盖 PNG/JPEG/24 位 BMP/调色板 PNG、V 方向、透明 RGB/Alpha、颜色与遮罩、低端 sRGB、先转换再插值、
+  最近点/双线性、UV 边界、负坐标/平铺、1x1、文件锁、TGA 原点/RLE/Alpha、位深/大小及异常输入。
+- runtime（独立生产 UI）：tests/Test-VertexColorWriterUI.ps1：30 项通过，编译两份真实 C# 源码。
+  覆盖原模式与高度测量回归、第三模式、默认设置、图像载入、空贴图禁用、失败清空缓存、切换恢复与关闭释放。
+- visual（独立 WinForms）：实际代码生成 default.png、rgba-gradient.png、solid-color.png、texture.png；
+  本轮检查 texture.png 与 default.png，控件、原图预览、高度读数和底部操作完整。不是 Max 内截图。
+  路径：C:/Users/yuanzijian/.codex/visualizations/2026/10/12/01a12fbd-afb3-73b3-9696-ebb7188c600c/VertexColorWriter-texture。
+- static/source：Test-MaxScriptSource.ps1 覆盖七个 .ms 文件，定向关键字/括号/菜单参数检查通过；不是 Max 编译器。
+  与本轮修改前备份对比确认高度/标尺逻辑未更改；新核心入口保留原关键词参数，贴图参数追加。
+  12 个本轮源码/说明文件统一 UTF-8 BOM + CRLF；git diff --check 通过。
+- unknown：此前独立 3dsmaxbatch.exe 启动已出现 License Error: ServiceErrorUserCancel；本轮未重试相同许可阻挡，
+  未操作用户既有 Max 会话。因此没有宿主执行通过结论。
+
+待执行宿主回归
+新增 tests/VertexColorWriter_Texture_Smoke.ms，仅在独立空场景运行：
+- 自建 2x2 RGBA PNG，经实际 UI 和 .NET 方法加载/采样，检查属性互调。
+- 两个三角面共享几何顶点但 UV 不同，验证接缝分别红/蓝，以及 RGB/Alpha/未选分量。
+- 源 UV/几何回读、工具栈不增长、与固定模式互换及 Undo、缺 UV 回滚、非法 UV 通道、混合批次、关窗清理。
+- 输出 %TEMP%/VertexColorWriter-texture-smoke.txt；不重置/保存/导出场景，测试自行清理其网格和图片。
+原 VertexColorWriter_Smoke.ms、VertexColorWriter_Height_Smoke.ms、ZHeightToVertexRed_Smoke.ms 继续作为回归，尚未运行。
+
+源码证据（SHA-256；根目录 D:/work/MyTools/3dmaxScripts/3DMAXScipts）
+- MaxZJTools/tools/VertexColorWriter.ms：VCW_BakeNode / VCW_Verify / VCW_OnBake / VCW_OpenUI
+  C4DA308854077685812FAC2BA231A98E3E214EBAADF1D409758849CCF2BF6DB2
+- MaxZJTools/tools/VertexColorWriterUI.cs：WriterPanel / BuildTextureSettings / LoadTextureFile / TexturePreview
+  FAC103BB759F6AE12B1E42ABBBED2EAB53AB0EE0801180342616C4E0680E1E27
+- MaxZJTools/tools/VertexColorWriterTexture.cs：TextureSource.Load / LoadTga / Sample
+  F19D3FB959128AC1F83074C5E3558F80E8777A4C13C0FF7E5DAC5AE6FB00A69A
+- MaxZJTools/tests/VertexColorWriter_Texture_Smoke.ms
+  E3514F31EB4138041218AB48E68C9913B5CAD6B42E98D77FE6AAD96769281554
+
+技术参考
+- Autodesk Meshop General Mapping Methods：
+  https://help.autodesk.com/cloudhelp/2020/ENU/3DSMax-MAXScript/files/GUID-A97DF4E3-04A7-4A91-AE7C-3C75A8BAA399.htm
+- Microsoft System.Drawing Bitmap.LockBits / Image.FromFile：
+  https://learn.microsoft.com/en-us/dotnet/api/system.drawing.bitmap.lockbits
+  https://learn.microsoft.com/en-us/dotnet/api/system.drawing.image.fromfile
+- Khronos Data Format（sRGB transfer）：https://registry.khronos.org/DataFormat/specs/1.4/dataformat.1.4.html
+- Truevision TGA 原始规范的维护镜像：https://github.com/DEAKSoftware/Truevision-TGA
+
+安装/更新：整包保留新 .cs 资源，运行 startup/MaxZJTools_Init.ms，关闭旧面板后重新打开；通常无需重启。
+以下保留历史记录；旧版证据和哈希只对应当次状态。
+----------------------------------------------------------------------------
+MaxZJTools v1.4.0 / VertexColorWriter v1.1.0 高度显示记录
+=====================================================
+日期：2026-10-13（Asia/Shanghai）
+范围：在现有 VertexColorWriter 中增加只读模型高度及临时视口标尺。
+状态：代码与独立 UI 验证完成；3ds Max 内测量及绘制验收待运行。
+模式：Lite，extension；继续使用本文件记录，不建立重复模块工作区。
+授权依据：用户确认“就按你的建议改”，接受面板精确读数 + 可开关视口标尺方案。
+
+需求和实现检查
+- [x] 面板单独显示当前模型的世界 Z 高度、顶部和底部，单位为米，三位小数。
+- [x] 单选几何模型自动测量；多选、空选择、删除和失败清除旧读数，不合并多模型高度。
+- [x] 测量读取当前帧网格顶点并应用 objectTransform；不修改原网格、修改器或 1m 映射参数。
+- [x] 默认开启视口标尺；模型旁绘制世界 Z 尺寸线和高度，投影过短时省略两端文字。
+- [x] 仅使用内存网格值和 gw 绘制；不创建标尺、文字模型或辅助节点，无可导出的标尺实体。
+- [x] 关闭开关仍保留面板测量；关闭工具注销回调并清空缓存，重载先注销旧函数值。
+- [x] 塌陷后仍测量当前模型，标尺不会烘焙进网格。隐藏对象不绘制。
+- [x] 测量在计时器中完成；绘制回调只读缓存，复杂网格将采样间隔从 0.5 秒延长至最多 5 秒。
+- [x] 空网格/世界空间修改器提示无法测量；绘制异常在开关提示与 F11 中报告。
+- [x] 主版本、菜单/About、version.ini、Readme、说明、流程图和回归脚本同步。
+- [ ] Max 内真实测量、视口显示/隐藏、塌陷/导出隔离、反复开关和 DPI 视觉验收。
+纯本地功能；网络协议、外部资源装配、第三方依赖均不适用。
+
+运行与静态证据
+- runtime（独立 WinForms）：Windows PowerShell 5.1 -STA 运行 tests/Test-VertexColorWriterUI.ps1，
+  实际 C# 界面编译成功，21 项断言通过。含高度/端点格式、测量不改映射、开关事件、采样间隔、
+  忙碌状态、清除旧高度及原 RGBA 两种模式回归。
+- runtime（独立 WinForms）：default.png、rgba-gradient.png、solid-color.png 均由实际界面代码生成；
+  本次已检查 default.png，模型高度行和标尺开关显示完整。窗口基准 860×760，正文 12 pt。
+  输出目录：C:/Users/yuanzijian/.codex/visualizations/2026/10/12/01a12fbd-afb3-73b3-9696-ebb7188c600c/VertexColorWriter-height。
+  该图不是 3ds Max 内的视口实测，也不证明 gw 绘制成功。
+- source/static：tests/Test-MaxScriptSource.ps1 覆盖六个 .ms 文件，定向关键字、括号及菜单参数检查通过。
+  这是静态保护，不是 MAXScript 编译器。git diff --check 通过。
+- source/review：测量与绘制函数均不创建场景节点或写入修改器；临时 mesh 在成功/失败路径释放，
+  注册/注销配对；读取单位与世界变换，原 RGBA 烘焙核心保留。
+- unknown：此前独立 Max 批处理启动被 License Error: ServiceErrorUserCancel 阻断；本轮未再次尝试许可，
+  未操作用户现有 Max 会话。因此没有 Max 宿主运行通过结论。
+
+待执行宿主回归
+- 新增 tests/VertexColorWriter_Height_Smoke.ms，仅在独立空场景运行；输出 %TEMP%/VertexColorWriter-height-smoke.txt。
+- 覆盖：100cm→1m、移动/非均匀缩放/旋转、父级、对象偏移、XForm 和塌陷、米制变化、零高度/空网格、
+  不新增节点/修改器、测量不改映射、开关/多选/取消选择/删除/重载/关闭与回调数量。
+- 脚本已生成但尚未运行；视口各方向、透视相机平面、DPI、网格导出仍需在 Max 中实测。
+- 已有 RGBA 与旧 ZHR 宿主测试继续保留，也不计为本轮已运行。
+
+源码证据（SHA-256；检查日期同上，根目录 D:/work/MyTools/3dmaxScripts/3DMAXScipts）
+- MaxZJTools/tools/VertexColorWriter.ms：VCW_MeasureHeight / VCW_DrawHeightOverlay / VCW_UpdateSelection / close
+  CBCEED6AA3D66594F064C50298A1BBE50299263C385E03DAB01CD15E8B4F635C
+- MaxZJTools/tools/VertexColorWriterUI.cs：WriterPanel.SetHeightMeasurement / HeightDisplayChanged / Dispose
+  60FF1562AE068B20582DBBC17E79D7D0C72BD683465A8B905344D99ACCD42A81
+- MaxZJTools/tests/VertexColorWriter_Height_Smoke.ms
+  D86D8D03780953A9B5ECD243B799A6F8CD7002ECC5CF47B83B66459C6A89E995
+
+API 依据（Autodesk）
+https://help.autodesk.com/cloudhelp/2016/ENU/MAXScript-Help/files/GUID-B94A1094-002C-4A7D-B5DD-AF5AB3435041.htm
+https://help.autodesk.com/cloudhelp/2023/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Change-Handlers-and-Callbacks/GUID-1961F536-7F01-4D72-930C-4B9432952B79.html
+https://help.autodesk.com/cloudhelp/2022/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Interacting-with-the-3ds-Max/Viewports/GUID-1B088FF0-6A36-420E-9F37-F0DBE9FB2676.html
+
+加载：重新运行 startup/MaxZJTools_Init.ms，再从菜单打开工具；无需新增安装依赖，通常无需重启。
+以下保留历史记录；旧版本状态、路径与验证结论仅对应各次记录。
+----------------------------------------------------------------------------
+MaxZJTools v1.3.0 / VertexColorWriter v1.0.0 实现与验证记录
+=======================================================
+日期：2026-10-13
+状态：实现完成，独立 UI 验证通过；MAXScript 宿主加载与几何运行待验证。
+模式：Lite；延续本文件的模块记录。用户已确认高度双色渐变与固定颜色填充均需支持。
+
+实现范围
+- 菜单及窗口更名为“定点色写入工具 | VertexColorWriter”，保留旧脚本/宏/函数入口。
+- 删除顶部说明，正文改为 12 pt；左侧参数、右侧纵向映射预览、底部选择和执行。
+- RGBA 独立勾选；双色高度渐变、固定颜色填充；Alpha 输入范围 0~1。
+- 保留统一米制高度，默认 1 米、世界 Z=0、R-only；支持各自底部起点。
+- 按面角保留未勾选 RGB 与 Alpha；新 RGB 与 Alpha 分别粘贴，重复写入复用工具栈前缀。
+- 支持结果明细和批次撤销；保留写后回读校验及失败时移除本次新增修改器。
+- 界面源码 VertexColorWriterUI.cs 必须随包保留；无第三方依赖，不自动保存或导出。
+- 初始化脚本、version.ini、Readme 及使用说明同步 v1.3.0。
+
+已执行的验证
+- Windows .NET Framework C# 编译器编译实际 VertexColorWriterUI.cs 成功。
+- Test-VertexColorWriterUI.ps1：13 项断言通过；覆盖字体、默认值、RGBA/底部模式、
+  颜色与 Alpha 回读、固定模式禁用高度、忙碌状态、空通道/空选择禁用、关闭释放。
+- 用同一 C# 界面生成 default.png、rgba-gradient.png、solid-color.png，已检查完整布局。
+  这是独立 WinForms 测试窗口的渲染，基准 96 DPI，不是 3ds Max 内运行截图。
+- Test-MaxScriptSource.ps1：定向保留字、括号配对、已知菜单参数误用检查通过。
+  修复 Windows PowerShell 默认文本解码导致的误报：显式按 UTF-8 读取；脚本保存为带 BOM 的 UTF-8。
+  该检查不是 MAXScript 编译器，不能证明脚本可加载或几何写入正确。
+- git diff --check 通过。
+
+目标宿主待验证
+- 本机此前尝试独立 3dsmaxbatch.exe 被 License Error: ServiceErrorUserCancel 阻断；
+  本次没有重试许可，也没有在用户现有 Max 会话里执行测试或修改其场景。
+- 新增 VertexColorWriter_Smoke.ms：供独立空场景运行，覆盖菜单重复加载、新旧入口、
+  RGBA 渐变/固定填色、逐通道保留、Alpha-only、栈复用、Undo 和失败回滚。
+- 更新 ZHeightToVertexRed_Smoke.ms 的 UI 入口，保留原 1m/2m、世界/底部和单位回归。
+- 上述两份 .ms 宿主测试均尚未运行，不能计为通过。
+- 仍需验证：Max 内编译/反复开关、实际 DPI 和键盘快捷键恢复、Alpha 粘贴、几何与 Undo、
+  安装/卸载及 FBX/Unity 回读。Max 2026+ 编译器兼容分支已按官方 API 提供，尚未实测。
+
+加载方法
+- 运行 startup/MaxZJTools_Init.ms 后，从“MaxZJTools > 定点色写入工具”重新打开。
+- 旧文件 ZHeightToVertexRed.ms 继续跳转新版；通常无需重启。
+
+以下是历史记录；其中旧版路径、界面结构与状态仅对应记录当次版本。
+----------------------------------------------------------------------------
+MaxZJTools v1.2.1 补丁检查
+========================
+日期：2026-10-13
+当前状态：fixed_pending_validation。修复用户截图中的脚本语法错误和菜单重载错误。
+ZHeightToVertexRed 脚本升至 v1.1.1，工具包升至 v1.2.1。
+静态回归在修改前检出两项、修改后通过；Max 内运行待复验。
+详情与依据：bugs/2026-10-13-zhr-load-errors.txt。
+以下是前一版开发记录，运行验证结论仅对应当次环境。
+ZHeightToVertexRed v1.2.0 开发与验证记录
+======================================
+
+日期：2026-10-13
+当前交付范围：统一映射高度、两种对齐方式、范围限制、美术操作界面。
+模式：Lite；用户已授权“优化一版”，沿用现有工具链，不新增工作区。
+历史状态：实现与静态检查完成；宿主运行和界面视觉验收未完成。
+
+需求与方案
+- 所有模型使用同一个高度跨度，默认 1 米，不按各自包围盒高度归一化。
+- 默认世界高度对齐，起点为世界 Z=0；另提供各自最低世界顶点为起点的模式。
+- 默认限制 R 到 0~1；保留 G/B/Alpha、可删除修改器及原来的批次撤销。
+- 三步骤界面：对齐方式、映射高度、写入；参数统一以米显示。
+- 映射示意显示黑、半灰、白的对应高度；实时选择数量、空选择禁用和处理明细。
+- 保留 ZHR_BakeNode 的旧调用默认值，界面显式传入新选项。
+- 不涉及网络、资源绑定或新依赖；无需额外宿主装配。
+
+实现检查
+- ZHR_MapHeights 集中处理共用跨度、起点、底部及截断，位于 tools/ZHeightToVertexRed.ms。
+- 新映射值接回原有面角色写入、ChannelInfo 粘贴和结果校验流程。
+- 改参数只更新示意；同一批次快照参数，结果不会自动随场景变化更新。
+- timer 和示意 bitmap 在窗口关闭时停用/释放，重复打开回到默认值。
+- MaxZJTools 主版本、About、version.ini、Readme 为 v1.2.0，工具脚本为 v1.1.0。
+
+已执行的验证
+- 对初始化脚本、工具脚本和 smoke 脚本做去字符串/注释后的括号配对检查，通过。
+  这不是 MAXScript 编译器语法检查，不证明脚本可加载。
+- 菜单引用文件存在、版本一致、旧 UI 标识无残留；git diff --check 通过。
+- 代码审查：共用高度跨度、正确单位换算、底部模式忽略世界起点、保留旧函数默认值。
+- 尝试独立 3dsmaxbatch.exe 运行 tests/ZHeightToVertexRed_Smoke.ms。
+  2026-10-13 11:08:57 启动日志报告 License Error: ServiceErrorUserCancel。
+  没有 smoke 执行结果，因此 UI 加载和几何回读用例均未运行，不计为通过。
+- 已结束本次测试进程，保留用户原有 Max 会话，没有保存或修改其场景。
+
+待运行的验证
+- tests/ZHeightToVertexRed_Smoke.ms：空场景执行；结果见 %TEMP%\MaxZJTools-ZHR-v1.2-smoke.txt。
+- 覆盖 1m/2m、起始高度、截断/保留、各自底部、共用世界高度、重复烘焙、G/B/Alpha 及失败回滚。
+- 手动核对实际 DPI 下的标签/输入框/示意图；选择变更、批次 Ctrl+Z、视口显示。
+- 菜单加载卸载、安装重启与 FBX→Unity 回读仍待验证。
+- 本次启动日志：%TEMP%\MaxZJTools-ZHR-v1.2-validation\stdout.log。
+
+参考 API（仅用于控件实现核对）
+https://help.autodesk.com/cloudhelp/2024/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Creating-MAXScript-Tools/Scripted-Utilities-and-Rollouts/Rollout-User-Interface-Controls/Rollout-User-Interface-Controls-3/GUID-411DB273-7B74-4FD7-89E9-B74B9CED102B.html
+https://help.autodesk.com/cloudhelp/2021/ENU/3DSMax-MAXScript/files/GUID-F9F2AE47-958E-4B5E-86F3-17C92A69C66C.htm
+https://help.autodesk.com/cloudhelp/2023/ENU/MAXScript-Help/files/MAXScript-Tools-and-Interaction/Creating-MAXScript-Tools/Scripted-Utilities-and-Rollouts/Rollout-User-Interface-Controls/Rollout-User-Interface-Controls-3/GUID-9A4F0A09-BB42-4EED-95CC-6B3D06939640.html
+
+以下为 2026-10-12 的历史记录；原始脚本不变及原哈希仅适用于当次集成。
+----------------------------------------------------------------------------
+ZHeightToVertexRed 集成检查记录
+============================
+
+日期：2026-10-12
+范围：MaxZJTools v1.1.0 菜单接入、重载刷新、版本与说明同步。
+授权依据：用户要求将新增 ZHeightToVertexRed 整合到当前工具链。
+实现方式：复用 BoneOverride 等工具的宏动作、相对工具目录和 fileIn 按需加载方式。
+本仓库没有现有开发罗盘，本次记录就近保存，不新建全局工作区。
+
+已完成
+- 注册 MaxZJTools_ZHeightToVertexRed，并在主菜单增加独立子菜单。
+- 关于窗口增加工具名称，初始化脚本、version.ini、Readme 统一为 v1.1.0。
+- 初始化先清理旧菜单再重建；清理失败时报告失败，不误报更新成功。
+- 修正旧清理函数的 catch (e) 写法，使用 getCurrentException() 获取异常。
+- 补充新工具入口、参数、输出、撤销、流程图、安装与发布规则。
+- 修正 Readme 当前工具列表中不存在的 KeyframeTools 条目。
+
+验证结果
+- 静态检查通过：6 个宏动作与 6 个菜单动作引用匹配，5 个工具脚本路径均存在。
+- 静态检查通过：初始化脚本与原工具脚本去掉注释/字符串后，括号配对平衡。
+  此项不是 MAXScript 编译器语法验证。
+- git diff --check 通过；版本信息一致；不新增外部依赖或资源。
+- 原始烘焙脚本 SHA-256 保持不变：
+  136FAE210465EEA432908FD0856C81ABB8F3ACCE49C8D48BC156A2DF1A57DB41
+
+待宿主验证
+- Max 菜单加载/卸载、连续重载去重、新窗口开关、原入口回归。
+- 100 cm / 80 cm 的 R 范围、重复烘焙、Ctrl+Z、G/B/Alpha 保留及异常回滚。
+- 安装器重启加载及卸载；FBX→Unity 导出回读；其他宿主版本兼容性。
+- 完整手动步骤见 tools/ZHeightToVertexRed-使用说明.txt 的“发布与更新规则”。
+
+运行尝试说明
+本机检测到 3ds Max 2022，已用独立 3dsmaxbatch.exe 尝试执行临时 smoke.ms。
+批处理日志只到启动命令，未生成 result.txt 或 Listener 执行证据；
+重试后仍未完成，不能视为语法、加载或烘焙验证通过。已结束本次测试进程。
+没有操作用户原有 Max 会话或保存场景，没有实际执行安装/卸载。
+临时测试及启动日志位置：%TEMP%\MaxZJTools-ZHR-validation\。
+当次交付状态：源码集成与静态检查完成；宿主运行验收待完成。

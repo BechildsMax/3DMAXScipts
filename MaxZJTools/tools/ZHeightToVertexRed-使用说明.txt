@@ -1,0 +1,10 @@
+﻿ZHeightToVertexRed 兼容入口说明
+============================
+
+本工具已更名为“定点色写入工具 / VertexColorWriter”，随 MaxZJTools v1.3.0 提供。
+完整说明见同目录 VertexColorWriter-使用说明.txt。
+
+ZHeightToVertexRed.ms 现在只加载 VertexColorWriter.ms；旧宏动作仍可调用新工具。
+旧 ZHR_* 脚本函数保留原默认值，旧 ZHR 修改器也可继续识别。
+请整包保留 VertexColorWriter.ms、VertexColorWriterUI.cs 与 VertexColorWriterTexture.cs，不能只复制旧入口文件。
+重新运行 startup/MaxZJTools_Init.ms 可刷新菜单名称，无需重启。

@@ -1,14 +1,55 @@
--- MaxZJTools_Init.ms
+﻿-- MaxZJTools_Init.ms
 -- 主菜单初始化脚本 - 避免版本迭代导致的重名菜单问题
 -- 作者: MaxZJ
--- 版本: 1.0.2 (修复版)
--- 日期: 2026-01-05
+-- 版本: 1.7.0
+-- 日期: 2026-10-13
 
 (
     global MaxZJTools_MenuName = "MaxZJTools"
-    global MaxZJTools_Version = "1.0.2"
+    global MaxZJTools_Version = "1.7.0"
     -- 在 startup 脚本执行时计算工具目录，避免 macroscript 内 getThisScriptFilename() 返回 usermacros 路径
     global MaxZJTools_ToolsPath = getFilenamePath (getThisScriptFilename()) + "..\\tools\\"
+
+    -- Register only this package's own PNGs; never write to the Max program directory.
+    -- iconName resolves these per-theme folders below #userIcons (Max 2017+).
+    fn RegisterVertexColorWriterIcons =
+    (
+        local sourceRoot = MaxZJTools_ToolsPath + "..\\icons\\"
+        local fileAPI = dotNetClass "System.IO.File"
+        local convertAPI = dotNetClass "System.Convert"
+        local changed = 0
+        for theme in #("Dark","Light") do
+        (
+            local sourceDir = sourceRoot + theme + "\\MaxZJTools\\"
+            local targetDir = (getDir #userIcons) + "\\" + theme + "\\MaxZJTools\\"
+            for size in #(16,24,30,32,36,48,64) do
+            (
+                local name = "VertexColorWriter_" + (size as string) + ".png"
+                local sourcePath = sourceDir + name
+                local targetPath = targetDir + name
+                try
+                (
+                    if not (doesFileExist sourcePath) do throw ("Missing icon: " + sourcePath)
+                    local needsCopy = not (doesFileExist targetPath)
+                    if not needsCopy do
+                        needsCopy = (convertAPI.ToBase64String (fileAPI.ReadAllBytes sourcePath)) != (convertAPI.ToBase64String (fileAPI.ReadAllBytes targetPath))
+                    if needsCopy do
+                    (
+                        makeDir targetDir all:true
+                        fileAPI.Copy sourcePath targetPath true
+                        changed += 1
+                    )
+                )
+                catch (format "[MaxZJTools] Optional icon registration: %\n" (getCurrentException()))
+            )
+        )
+        if changed > 0 do
+        (
+            try (colorMan.reInitIcons()) catch (format "[MaxZJTools] Icon cache refresh: %\n" (getCurrentException()))
+            format "[MaxZJTools] Registered % VertexColorWriter icon files.\n" changed
+        )
+    )
+    try (RegisterVertexColorWriterIcons()) catch (format "[MaxZJTools] Optional icons unavailable: %\n" (getCurrentException()))
     
     -- 定义菜单动作（总是重新定义，确保使用最新版本）
     macroscript MaxZJTools_RenameTools
@@ -75,11 +116,37 @@
         )
     )
     
+    macroscript MaxZJTools_VertexColorWriter
+        category:"MaxZJTools"
+        tooltip:"定点色写入工具"
+        buttonText:"定点色写入工具"
+        iconName:"MaxZJTools/VertexColorWriter"
+    (
+        local toolPath = MaxZJTools_ToolsPath + "VertexColorWriter.ms"
+
+        if doesFileExist toolPath then
+        (
+            fileIn toolPath
+        )
+        else
+        (
+            messageBox ("找不到 VertexColorWriter.ms 文件\n路径: " + toolPath) title:"错误"
+        )
+    )
+
+    -- 保留旧动作标识，已有快捷键和工具栏按钮仍可调用。
+    macroscript MaxZJTools_ZHeightToVertexRed
+        category:"MaxZJTools"
+        tooltip:"定点色写入工具（兼容旧入口）"
+        iconName:"MaxZJTools/VertexColorWriter"
+    (
+        macros.run "MaxZJTools" "MaxZJTools_VertexColorWriter"
+    )
     macroscript MaxZJTools_About
         category:"MaxZJTools"
         tooltip:"关于 MaxZJTools"
     (
-        local versionStr = "1.0.2"
+        local versionStr = MaxZJTools_Version
         local aboutText = "MaxZJTools\n"
         aboutText += "版本: " + versionStr + "\n\n"
         aboutText += "专业的3ds Max工具集合\n\n"
@@ -87,111 +154,49 @@
         aboutText += "- 节点重命名工具\n"
         aboutText += "- 贴图路径重设工具\n"
         aboutText += "- Mesh动画检查工具\n"
-        aboutText += "- 单骨骼替换工具\n\n"
+        aboutText += "- 单骨骼替换工具\n"
+        aboutText += "- 定点色写入工具\n\n"
         aboutText += "作者: MaxZJ\n"
-        aboutText += "日期: 2026-01-06"
+        aboutText += "日期: 2026-10-13"
         
         messageBox aboutText title:"关于 MaxZJTools"
     )
     
     format "[MaxZJTools] macroscript 已更新到版本 %\n" MaxZJTools_Version
     
-    -- 清理旧版本菜单的函数（安全版本）
-    fn CleanupOldMenus menuName = 
+    -- 从后向前按序号删除，避免删掉一个菜单后后续序号移动。
+    fn CleanupOldMenus menuName =
     (
-        format "[MaxZJTools] 检查是否存在旧菜单...\n"
-        
-        try
+        local mainMenuBar = menuMan.getMainMenuBar()
+        if mainMenuBar == undefined do throw "无法获取 3ds Max 主菜单栏。"
+        local removedCount = 0
+        for itemIndex = mainMenuBar.numItems() to 1 by -1 do
         (
-            local mainMenuBar = menuMan.getMainMenuBar()
-            if mainMenuBar == undefined then
+            local menuItem = mainMenuBar.getItem itemIndex
+            if menuItem != undefined do
             (
-                format "[MaxZJTools] 无法获取主菜单栏\n"
-                return 0
-            )
-            
-            local removedCount = 0
-            local maxAttempts = 10
-            
-            -- 简单的查找和删除
-            for attempt = 1 to maxAttempts do
-            (
-                local foundIndex = 0
-                local itemCount = 0
-                
-                try
+                if menuItem.getTitle() == menuName do
                 (
-                    itemCount = mainMenuBar.numItems()
-                )
-                catch
-                (
-                    format "[MaxZJTools] 无法获取菜单数量\n"
-                    exit
-                )
-                
-                -- 查找菜单
-                for i = 1 to itemCount do
-                (
-                    try
-                    (
-                        local item = mainMenuBar.getItem i
-                        if item != undefined then
-                        (
-                            try
-                            (
-                                local itemTitle = item.getTitle()
-                                if itemTitle != undefined and itemTitle == menuName then
-                                (
-                                    foundIndex = i
-                                    exit
-                                )
-                            )
-                            catch()
-                        )
-                    )
-                    catch()
-                )
-                
-                -- 如果找到了，尝试删除
-                if foundIndex > 0 then
-                (
-                    try
-                    (
-                        mainMenuBar.removeItem foundIndex
-                        menuMan.updateMenuBar()
-                        removedCount += 1
-                        format "[MaxZJTools] 删除了位置 % 的菜单\n" foundIndex
-                    )
-                    catch
-                    (
-                        format "[MaxZJTools] 无法删除位置 % 的菜单，跳过\n" foundIndex
-                        exit
-                    )
-                )
-                else
-                (
-                    exit
+                    -- removeItem 接收菜单项对象；序号必须传给 removeItemByPosition。
+                    local countBefore = mainMenuBar.numItems()
+                    mainMenuBar.removeItemByPosition itemIndex
+                    if mainMenuBar.numItems() != countBefore - 1 do
+                        throw ("旧菜单未能移除，位置：" + (itemIndex as string))
+                    removedCount += 1
                 )
             )
-            
-            if removedCount > 0 then
-                format "[MaxZJTools] 清理完成，删除了 % 个旧菜单\n" removedCount
-            else
-                format "[MaxZJTools] 未发现旧菜单\n"
-            
-            return removedCount
         )
-        catch (e)
-        (
-            format "[MaxZJTools] 清理过程出错: %\n" (e as string)
-            return 0
-        )
+        menuMan.updateMenuBar()
+        format "[MaxZJTools] 已移除 % 个旧菜单\n" removedCount
+        removedCount
     )
-    
     -- 创建主菜单
     fn CreateMainMenu = 
     (
-        -- 先检查是否已经存在菜单，如果存在就不重复创建
+        -- 每次加载先清理旧菜单，使新增工具立即出现在菜单中。
+        CleanupOldMenus MaxZJTools_MenuName
+
+        -- 清理失败时保留现有菜单并报告错误，避免重复创建。
         local mainMenuBar = menuMan.getMainMenuBar()
         local menuExists = false
         
@@ -204,21 +209,17 @@
                 if itemTitle == MaxZJTools_MenuName then
                 (
                     menuExists = true
-                    format "[MaxZJTools] 菜单已存在，跳过创建\n"
+                    format "[MaxZJTools] 旧菜单未能移除\n"
                     exit
                 )
             )
         )
         
-        -- 如果菜单已存在，直接返回
+        -- 不将清理失败误报为更新成功。
         if menuExists then
         (
-            format "[MaxZJTools] 版本 % 已加载\n" MaxZJTools_Version
-            return true
+            throw "MaxZJTools: could not remove the old menu. Restart 3ds Max and try again."
         )
-        
-        -- 尝试清理可能存在的损坏菜单（仅首次创建时）
-        CleanupOldMenus MaxZJTools_MenuName
         
         -- 创建主菜单
         local mainMenu = menuMan.createMenu MaxZJTools_MenuName
@@ -247,6 +248,12 @@
         boneMenu.addItem boneAction -1
         local boneToolsMenu = menuMan.createSubMenuItem "BoneOverride" boneMenu
         
+        -- 创建定点色写入工具子菜单
+        local heightMenu = menuMan.createMenu "定点色写入工具"
+        local heightAction = menuMan.createActionItem "MaxZJTools_VertexColorWriter" "MaxZJTools"
+        heightMenu.addItem heightAction -1
+        local heightToolsMenu = menuMan.createSubMenuItem "定点色写入工具" heightMenu
+
         -- 添加分隔符
         local separator1 = menuMan.createSeparatorItem()
         
@@ -258,6 +265,7 @@
         mainMenu.addItem textureToolsMenu -1
         mainMenu.addItem meshToolsMenu -1
         mainMenu.addItem boneToolsMenu -1
+        mainMenu.addItem heightToolsMenu -1
         mainMenu.addItem separator1 -1
         mainMenu.addItem aboutAction -1
         

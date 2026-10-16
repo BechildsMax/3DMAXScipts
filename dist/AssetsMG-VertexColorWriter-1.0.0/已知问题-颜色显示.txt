@@ -1,0 +1,55 @@
+﻿VertexColorWriter 选色与视口显示差异调查
+======================================
+
+日期：2026-10-13
+状态：investigating；本轮交付原因分析，未修改生产代码或场景。
+主模块：MaxZJTools / VertexColorWriter。工具包 v1.7.0，工具 v1.4.0。
+来源：用户截图 codex-clipboard-a4d69c3e-99af-472f-8e5c-2cd12a3e0d6f.png，询问为何选色与填充色不同。
+预期：固定颜色选 #00FF80，写入所选顶点后能直观理解与视口显示之间的关系。
+实际：色块和预览偏绿，模型偏青且从顶部向底部变暗；状态显示“已写入 4 个选中顶点”。
+
+已确认的证据
+- source：tools/VertexColorWriterUI.cs:521 PickColor 使用 Windows Forms ColorDialog，
+  SetSwatch 原样显示 System.Drawing.Color。LowR/LowG/LowB（694–696 行）仅做字节值 / 255。
+  因此 #00FF80 的配置输出为 RGB=(0,1,0.5019608)，没有根据 Max 显示设置做颜色空间转换。
+- source：tools/VertexColorWriter.ms:278 固定模式按上述数值写入所勾选分量。
+  334 行仅设置 vertexColorType=#color 和 showVertexColors=true，没有设置光照/着色显示方式。
+- source：局部范围只改所选几何顶点对应的面角；未选顶点保留原值；原先没有 RGB 时未选点初始化为 0。
+  Alpha 没有勾选时，界面里的 Alpha=0 不参与写入，不能据此解释模型变黑。
+- runtime（截图像素读取，不是 Max 网格回读）：原图 1736×879，色块 (155,293) 与预览 (587,302)
+  均为 #00FF80；模型 (1110,275)=#00EEC2，(1110,400)=#00D1AC，(1110,680)=#00554E。
+  证明屏幕显示确有色相及明暗差异，不证明网格中存储了这些屏幕 RGB 数值。
+- document：Autodesk 的 Gamma Correction 说明显示 Gamma 会改变数值到屏幕亮度的关系；
+  VertexPaint Paintbox 明确区分带视口光照的 Shaded 与不带光照的 Unshaded 显示。
+
+判断与未确认项
+- inference：当前固定颜色将显示用色块数值直接写入顶点，缺少“颜色 / 遮罩数值”解释的区别。
+  若视口把数据作为线性颜色再编码到显示空间，B=0.502 会显示成约 186（Gamma 2.2）或 188（sRGB），
+  高于色块中的 128，方向上吻合截图的偏青；用户实际 Gamma/颜色管理/曝光设置未知，不能仅凭截图定论。
+- inference：只有 4 个点被写入；如果其余点较暗，面内插值会形成从绿到暗色的过渡。
+  这与“固定颜色”不矛盾：固定的是被写入顶点的值，整个面仍插值其他顶点。视口光照也可能叠加明暗。
+- unknown：实际模型顶点数、所选点位置、各面角 RGB/Alpha、颜色管理与 Shaded 状态未读取。
+  不能声称已复现 Max 内问题、全部渐变都是光照、RGB 顺序错误，或只要关光照就完全匹配。
+- 截图的“请进入顶点子对象模式”是当前写入范围状态提示，底部成功信息是上次结果；
+  不能据此认定刚才的写入失败，也不能仅凭截图确认原层级恢复是否成功。
+
+修正方向（尚未实施）
+- 固定颜色和高度颜色增加“颜色匹配 / 遮罩原值”用途：前者明确显示色与写入空间的转换，
+  后者维持现有 /255 的精确数值语义，避免破坏高度灰度和通道遮罩工作流。
+- 提供不带视口光照的顶点色检查方式，并保留用户场景的颜色管理设置；不把修改全局 Gamma 作为修复。
+- 显示实际写入 RGBA 与预览含义；局部写入提示面内仍与未选顶点颜色插值。
+- 在 Max 回读所选顶点的面角值，再比较关闭着色/照明后的端点显示；确认用户宿主的颜色管理后选定转换。
+
+验证边界与后续回归
+- 本轮只读源码、截图像素和官方资料，并记录问题；没有重新写入用户模型或运行 Max。
+- 历史批处理宿主受 License Error: ServiceErrorUserCancel 阻断；此状态不代表当前用户 Max 无法使用。
+- 修复后需覆盖 #00FF80、灰色 128、纯色端点、只写单通道、RGBA、选点与整模型、颜色与遮罩两种用途，
+  校验原始面角数值和无光照视口显示；不能把 UI 控件预览测试当成宿主显示验收。
+
+源码指纹（仓库根 D:/work/MyTools/3dmaxScripts/3DMAXScipts；检查于上述日期）
+VertexColorWriterUI.cs SHA-256: 14A39ED1A4176D398567BB7C954DF3CBFDBCA7F0E7E43DFA3CE254A573FBB2FC
+VertexColorWriter.ms SHA-256: 91FE70D4AF7AC88660397162AF7DF309331D595DAD340D59380C5BD4513138DC
+
+官方参考
+https://help.autodesk.com/cloudhelp/2022/ENU/3DSMax-Reference/files/GUID-1AE4B763-13B0-4242-AE71-B2587CD116F3.htm
+https://help.autodesk.com/cloudhelp/2022/ENU/3DSMax-Modifiers/files/GUID-C6746472-B239-45F1-B8F0-38420ACD7399.htm
