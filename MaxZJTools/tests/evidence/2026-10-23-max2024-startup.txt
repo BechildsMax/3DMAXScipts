@@ -1,0 +1,9 @@
+﻿MaxZJTools v1.7.1 / Max 2024 startup attempt
+Date: 2026-10-23 Asia/Shanghai
+Executable version: 26.2.0.22013
+Result: BLOCKED before test execution; no smoke report / ALL PASS.
+Source: third isolated 3dsmaxbatch stdout (UTF-16LE), relevant lines retained below.
+
+2026/10/23 12:40:56;  Specified option script: D:\GithubDesktopSave\3dmaxScripts\3DMAXScipts\MaxZJTools\tests\LegacyTools_Smoke.ms
+2026/10/23 12:40:56;  3ds Max Install Location: C:\Program Files\Autodesk\3ds Max 2024\
+2026/10/23 12:41:19;  License Error: user canceled authorization

@@ -1,8 +1,8 @@
 ﻿MaxZJTools - 3ds Max工具集
 ===============================
 
-版本: 1.7.0
-日期: 2026-10-13
+版本: 1.7.1（开发候选，Max 宿主验收待完成）
+日期: 2026-10-23
 
 # 项目概览
 
@@ -21,12 +21,18 @@
    - 添加前缀/后缀
    - 查找替换
    - 批量重命名（带编号）
-   - 大小写转换
-   - 删除前缀/后缀/数字
+   - 空选择保护、目标去重、名称冲突与过期预览检查
+   - 完整说明：docs/RenameTools.md
 
 2. 贴图路径重设 (ReSetTexturesPath)
+   - 显式扫描场景材质；共享 Bitmaptexture 去重，预览旧/新路径，目标文件不存在时跳过
+   - 只修改贴图引用，不复制图片；完整说明：docs/ReSetTexturesPath.md
 3. Mesh动画检查 (MeshChecker)
+   - 同一递归规则扫描/清理 PRS 子轨道，阻断过期清单和范围外共享控制器
+   - 完整说明：docs/MeshChecker.md
 4. 单骨骼替换 (BoneOverride)
+   - 静态标准骨骼修复；完整权重预检、写回和回读后才修改层级、名称、可见性
+   - 失败请求宿主取消本批并核对恢复；不迁移动画/约束，完整说明：docs/BoneOverride.md
 5. 定点色写入工具 (VertexColorWriter)
    - 入口：MaxZJTools > 定点色写入工具 > 对应动作
    - 可设置统一映射高度（默认 1 米），选择按世界高度或各自底部对齐灰度
@@ -49,15 +55,17 @@
 1. 打开 3ds Max
 2. 将 Install.ms 拖入 3ds Max 视口
    或菜单：Scripting > Run Script，选择 Install.ms
-3. 出现"安装成功"提示后，重启 3ds Max
+3. 出现“Loader 注册完成；尚未验证菜单加载”后，重启 3ds Max
 4. 菜单栏将自动出现 MaxZJTools 菜单
 
 说明：
 - 安装脚本会自动识别当前机器的 3ds Max 版本和路径，无需手动填写任何路径
-- 安装内容只有一个小文件（MaxZJTools_Loader.ms）写入 3ds Max 的 startup 目录
+- 安装前检查必需文件与版本；在 Max 用户 startup 目录写入 MaxZJTools_Loader.ms
+- 更新已有 Loader 时保留唯一 .bak 备份；失败报告具体路径，启动路径失效时提示重新安装
 - 本工具包的所有脚本文件保留在原目录，不会被复制或移动
 - 初始化脚本会将 VertexColorWriter 的 14 个 PNG 复制到 Max 用户图标目录，注册入口图标；其他资源仍使用包内路径
-- 换电脑或重装 3ds Max 后，重新运行 Install.ms 即可
+- 换电脑、重装 Max 或移动包目录后重新运行 Install.ms，再验证启动与菜单
+- 文件安装不属于场景 Undo；回退可将该次 .bak 复制覆盖 Loader，保留匹配的旧包目录
 
 卸载方法：
 ---------
@@ -90,12 +98,12 @@ MaxZJTools/
 │   ├── ZHeightToVertexRed.ms    # 旧文件兼容入口
 │   └── ZHeightToVertexRed-使用说明.txt
 └── config/
-    └── version.ini             # 版本信息
+    └── version.ini             # 版本信息（安装、菜单与关于窗口的唯一运行版本源）
 
 # 技术与兼容性
 
-v1.7.0 提供高度渐变、固定颜色、贴图写入三种 RGBA 模式、局部顶点填充及只读高度测量。目标验证宿主为 3ds Max 2022；
-其他版本尚未验证。依赖 Max 内置 mesh/ChannelInfo、Turn_to_Mesh、UVW_Mapping_Paste
+v1.7.1 修复四个已有工具的写入范围、预览和恢复问题；VertexColorWriter 保持 v1.4.0，提供高度渐变、固定颜色、贴图写入三种 RGBA 模式、局部顶点填充及只读高度测量。目标验证宿主为 3ds Max 2022；
+本轮另外尝试 Max 2024，因授权错误未进入脚本执行，不能宣称兼容通过。依赖 Max 内置 mesh/ChannelInfo、Turn_to_Mesh、UVW_Mapping_Paste
 及现有 menuMan 菜单接口；界面依赖内置 .NET WinForms/System.Drawing，无第三方库。
 必须保留同目录 VertexColorWriterUI.cs 与 VertexColorWriterTexture.cs，首次打开编译到内存。
 贴图模式使用模型已有 UV（默认通道 1），完整颜色勾选 RGB；灰度数值/遮罩选择“遮罩”。
@@ -108,8 +116,10 @@ v1.7.0 提供高度渐变、固定颜色、贴图写入三种 RGBA 模式、局�
 按工具说明验证烘焙、撤销和资源路径。卸载时删除 Loader 并重启，不会删除场景修改器。
 本次检查记录见 integration-validation.txt。
 重载初始化脚本后重新打开面板；工具栏若缓存旧图标可重启 Max。图标缺失不阻止面板与颜色写入使用。
-本轮独立 UI 44 项与定向静态检查通过；读取器此前独立采样 41 项通过，本轮未改读取器。
-Max 宿主测试受此前许可证错误阻挡，新增局部网格写入/Undo/导出验收仍待完成，测试脚本见 tests/VertexColorWriter_Selection_Smoke.ms。
+本轮定向静态检查通过；MAXScript 编译、工具交互、写入和 Undo 未取得宿主通过证据，详见 docs/ArtTA-修复验证.md。
+本轮新增 tests/LegacyTools_Smoke.ms 覆盖四个旧工具，只可在新空场景/独立批处理环境运行。
+历史 VertexColorWriter UI 44 项/采样 41 项结果仅对应原记录，本轮未修改、未重跑，不借作本轮验收。
+VertexColorWriter 的局部网格写入/Undo/导出仍待目标宿主验证，原测试脚本继续保留。
 
 # 发布与更新规则
 

@@ -3,7 +3,7 @@ param([string]$ToolRoot = (Split-Path -Parent $PSScriptRoot))
 $ErrorActionPreference = 'Stop'
 # Autodesk MAXScript Language Reserved Keywords; compared case-insensitively.
 $keywords = @('about','and','animate','as','at','attributes','by','case','catch','collect','continue','coordsys','do','else','exit','fn','for','from','function','global','if','in','local','macroscript','mapped','max','not','of','off','on','or','parameters','persistent','plugin','rcmenu','return','rollout','set','struct','then','throw','to','tool','try','undo','utility','when','where','while','with')
-$paths = @('tools\ZHeightToVertexRed.ms','tools\VertexColorWriter.ms','startup\MaxZJTools_Init.ms','tests\ZHeightToVertexRed_Smoke.ms','tests\VertexColorWriter_Smoke.ms','tests\VertexColorWriter_Height_Smoke.ms','tests\VertexColorWriter_Texture_Smoke.ms','tests\VertexColorWriter_Selection_Smoke.ms')
+$paths = @('tools\RenameTools.ms','tools\MeshChecker.ms','tools\ReSetTexturesPath.ms','tools\BoneOverride.ms','Install.ms','tests\LegacyTools_Smoke.ms','tools\ZHeightToVertexRed.ms','tools\VertexColorWriter.ms','startup\MaxZJTools_Init.ms','tests\ZHeightToVertexRed_Smoke.ms','tests\VertexColorWriter_Smoke.ms','tests\VertexColorWriter_Height_Smoke.ms','tests\VertexColorWriter_Texture_Smoke.ms','tests\VertexColorWriter_Selection_Smoke.ms')
 $failures = [System.Collections.Generic.List[string]]::new()
 foreach ($relative in $paths) {
     $source = Get-Content -LiteralPath (Join-Path $ToolRoot $relative) -Raw -Encoding UTF8

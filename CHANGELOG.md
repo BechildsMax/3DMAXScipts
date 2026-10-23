@@ -9,11 +9,46 @@
 
 | 当前版本归属 | 版本 | 依据与状态 |
 |---|---|---|
-| MaxZJTools 工具包 | v1.7.0 | [version.ini](MaxZJTools/config/version.ini)，Max 宿主验收待完成 |
+| MaxZJTools 工具包 | v1.7.1（开发候选） | [version.ini](MaxZJTools/config/version.ini)，Max 宿主验收待完成 |
 | VertexColorWriter 工具 | v1.4.0 | [使用说明](MaxZJTools/tools/VertexColorWriter-使用说明.txt)，随上述工具包维护 |
 | AssetsMG.VertexColorWriter 集成包 | v1.0.0 | [生成器](integrations/AssetsMG/Build-Package.ps1)，基于 MaxZJTools v1.7.0 / 工具 v1.4.0；已生成本地候选包，实际接入待验证 |
 
 # 未发布（Unreleased）
+
+## 2026-10-23 · v1.7.1 · 收紧四工具写入范围与恢复处理 · 旧工具、安装入口、测试和说明 · 重开面板，安装验证需重启
+
+**版本归属**：MaxZJTools 工具包 v1.7.1；RenameTools v1.2.1、MeshChecker v1.0.1、ReSetTexturesPath v1.0.1；BoneOverride 保留旧 V4 标识，未设独立语义版本。VertexColorWriter v1.4.0、AssetsMG.VertexColorWriter v1.0.0 均不变。
+**状态**：未发布开发候选；源码与定向静态检查完成，Max 宿主运行、失败恢复及非作者复核待完成。
+
+### GitHub 修改概要
+
+```text
+fix(MaxZJTools): 修复批处理范围、过期预览和骨骼权重恢复处理
+
+- 重命名增加空选择保护、目标去重和冲突检查；动画检查与清理使用同一轨道清单。
+- 贴图引用预览目标路径、跳过不存在的图片；骨骼替换先核对完整权重，失败取消本批并核对恢复。
+- 安装器检查依赖并备份旧 Loader，菜单统一读取版本配置；补齐四工具说明与宿主冒烟用例。
+- Max 2024 批处理被授权错误阻断，宿主编译、Undo 与骨骼失败恢复待验证；尚非稳定发布。
+```
+
+### 改动与影响
+
+- 按 ArtTA v0.2.0 简化提案采用一份简短方案和真实验证记录，沿用现有面板、宿主 Undo 与项目记录；不新增审批框架或 CI。
+- RenameTools 空选择不会修改全场景材质；对象/骨骼合并去重；参数、目标、旧名变化或新重名冲突时要求重新预览。部分失败分别计数。
+- MeshChecker 递归检查/删除同一 PRS 叶轨道，拒绝不完整扫描、陈旧清单和范围外共享控制器；关闭排序以保持行与引用一致。
+- ReSetTexturesPath 显式全场景材质扫描，递归子材质并按引用去重；列出旧/新路径，检查目标文件与冲突，只改引用、不复制或覆盖图片。
+- BoneOverride 拒绝不支持的动态/约束、实例 Skin、歧义和不完整范围；完整快照及转移所有正权重，包括微小权重和未关联顶点。全部回读通过后才修改层级/身份，失败以 Hold 取消并验证恢复。仅支持静态标准骨骼；需要场景副本和专项宿主验收。
+- Install 在替换前检查必要文件、写入暂存 Loader 并回读，保留唯一备份；丢失包路径有诊断。Init 从 version.ini 读版本/日期，保留已有菜单去重修复。
+- 补四工具参数、流程、范围和限制，移除 README 中未实现的大小写转换/删除数字宣称；新增 LegacyTools_Smoke.ms。四工具重开只处理自己的窗口，不修改 VertexColorWriter。
+
+### 验证与发布说明
+
+- 验证：本轮定向静态检查通过，版本/文档链接/UTF-8 BOM + CRLF 与差异核对完成。定向检查不是 MAXScript 编译器。新增宿主脚本已编写，未取得执行报告。
+- 阻挡：2026-10-23 Max 2024（26.2.0.22013）独立 batch 报 `License Error: user canceled authorization`；未进入测试。Max 2022、安装/重复加载/卸载、实际修改和 Undo、骨骼失败恢复仍待验证。不将历史 VCW UI/采样结果计作本轮通过。
+- 使用：目标仍为 Max 2022，2024 尚未确认；无新增第三方依赖或图片资源，保留完整包。更新后重载 Init 并重开面板；安装器备份/自动启动需运行 Install.ms 并重启验证。宿主资源原有要求不变。
+- 回退：场景修改使用本批 Undo 或执行前副本；安装文件使用对应 .bak；源包回退需匹配文件并重载。BoneOverride 的静态范围限制与贴图不存在时跳过属于本版明确保护行为；不得绕过后用于未支持资产。
+- 依据：[本轮方案与验证](MaxZJTools/docs/ArtTA-修复验证.md)、[实际启动日志](MaxZJTools/tests/evidence/2026-10-23-max2024-startup.txt)、[实施记录](MaxZJTools/integration-validation.txt)。未执行 Git 提交/推送、Tag、Release、真实安装或外发。
+- 集成：现有 AssetsMG VCW v1.0.0 ZIP 未重打包，仍按原 v1.7.0/VCW v1.4.0 基线；其中没有本轮四工具，不包含此次修复。
 
 ## 2026-10-16 · v1.7.0 · 统一版本日志与 GitHub 修改概要 · 仓库文档和集成说明模板 · 无需重启
 

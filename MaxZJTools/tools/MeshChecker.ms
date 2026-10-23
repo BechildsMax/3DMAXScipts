@@ -1,9 +1,13 @@
--- MeshChecker.ms
+﻿-- MeshChecker.ms
 -- 网格动画检查工具
 -- 功能: 检查选择对象的动画帧并提供清理功能
--- 版本: 1.0.0
--- 日期: 2026-01-06
+-- 版本: 1.0.1
+-- 日期: 2026-10-23
 
+global meshCheckerRollout
+global meshCheckerDialog
+global MaxZJTools_Headless
+try (closeRolloutFloater meshCheckerDialog) catch ()
 (
     rollout meshCheckerRollout "Mesh动画检查工具" width:650 height:600
     (
@@ -34,62 +38,62 @@
         -- 全局变量
         local objectsWithAnim = #()
         
-        -- 递归收集控制器关键帧
-        fn collectKeys c keyArray =
+        local scannedSelection = #()
+        local scannedPlans = #()
+        local scanComplete = false
+        -- 只收集 PRS 的可关键帧轨道；检查和删除使用同一遍历。
+        fn collectTracks ctrl tracks visited =
         (
-            if c != undefined then
+            if ctrl == undefined or findItem visited ctrl != 0 do return tracks
+            append visited ctrl
+            local children = #()
+            for i = 1 to ctrl.numSubs do
             (
-                -- 检查主控制器的keys
-                if c.keys != undefined and c.keys.count > 0 then
-                (
-                    for i = 1 to c.keys.count do
-                    (
-                        local frameNum = (c.keys[i].time / ticksPerFrame) as integer
-                        appendIfUnique keyArray frameNum
-                    )
-                )
-                
-                -- 检查子控制器（比如欧拉角的X/Y/Z）
-                try
-                (
-                    local numSubs = c.numSubs
-                    if numSubs != undefined and numSubs > 0 then
-                    (
-                        for subIdx = 1 to numSubs do
-                        (
-                            try
-                            (
-                                local subCtrl = c[subIdx].controller
-                                if subCtrl != undefined then
-                                    collectKeys subCtrl keyArray
-                            )
-                            catch()
-                        )
-                    )
-                )
-                catch()
+                local childCtrl = try (ctrl[i].controller) catch (undefined)
+                if childCtrl != undefined do appendIfUnique children childCtrl
             )
+            if children.count > 0 then
+                for childCtrl in children do collectTracks childCtrl tracks visited
+            else
+            (
+                local count = numKeys ctrl
+                if count > 0 do append tracks #(ctrl, (for i = 1 to count collect (getKeyTime ctrl i)))
+            )
+            tracks
         )
-        
-        -- 获取控制器的关键帧信息
+        fn objectTracks obj =
+        (
+            if not isValidNode obj do throw "对象已删除，请重新扫描。"
+            local tracks = #()
+            local visited = #()
+            for ctrl in #(obj.position.controller, obj.rotation.controller, obj.scale.controller) do collectTracks ctrl tracks visited
+            tracks
+        )
+        fn sameTracks oldTracks newTracks =
+        (
+            if oldTracks.count != newTracks.count do return false
+            for i = 1 to oldTracks.count do
+            (
+                if oldTracks[i][1] != newTracks[i][1] or oldTracks[i][2].count != newTracks[i][2].count do return false
+                for k = 1 to oldTracks[i][2].count do
+                    if oldTracks[i][2][k] != newTracks[i][2][k] do return false
+            )
+            true
+        )
         fn getKeysInfo ctrl =
         (
-            local keysInfo = ""
+            local tracks = #()
+            collectTracks ctrl tracks #()
+            local frames = #()
             local keyCount = 0
-            local allKeyFrames = #()
-            
-            collectKeys ctrl allKeyFrames
-            
-            if allKeyFrames.count > 0 then
+            for track in tracks do
             (
-                sort allKeyFrames
-                keyCount = allKeyFrames.count
-                keysInfo = "帧: " + (allKeyFrames as string)
+                keyCount += track[2].count
+                for t in track[2] do appendIfUnique frames (t as string)
             )
-            
-            return #(keysInfo, keyCount)
+            #((if frames.count > 0 then "时间: " + (frames as string) else "无可清理关键帧"), keyCount)
         )
-        
+
         -- 初始化 DataGridView
         fn initDataGridView =
         (
@@ -135,6 +139,10 @@
             keyCol.Width = 80
             dgvAnimInfo.Columns.Add keyCol
             
+            for columnIndex = 1 to dgvAnimInfo.Columns.Count - 1 do
+                dgvAnimInfo.Columns.Item[columnIndex].ReadOnly = true
+            for columnIndex = 0 to dgvAnimInfo.Columns.Count - 1 do
+                dgvAnimInfo.Columns.Item[columnIndex].SortMode = (dotNetClass "System.Windows.Forms.DataGridViewColumnSortMode").NotSortable
             dgvAnimInfo.Refresh()
         )
         
@@ -189,6 +197,11 @@
         -- 扫描选择的对象
         fn scanSelectedObjects =
         (
+            scanComplete = false
+            dgvAnimInfo.Rows.Clear()
+            objectsWithAnim = #()
+            scannedPlans = #()
+            scannedSelection = selection as array
             if selection.count == 0 then
             (
                 messageBox "请先选择要检查的对象！" title:"提示"
@@ -207,6 +220,7 @@
                 if animInfo[1] then  -- 有动画
                 (
                     append objectsWithAnim obj
+                    append scannedPlans (objectTracks obj)
                     
                     -- 直接添加行到DataGridView
                     local rowIndex = dgvAnimInfo.Rows.Add()
@@ -231,143 +245,95 @@
             )
             else
             (
-                lblStatus.text = "状态: 选择的对象都没有动画"
+                lblStatus.text = "状态: 没有可清理的 PRS 关键帧；约束、程序动画不在范围内"
             )
             
+            scanComplete = true
             return true
         )
         
-        -- 清理对象的动画
-        fn clearObjectAnimation obj =
+        -- 执行前复查整份扫描，防止清理旧列表指向的场景或轨道。
+        fn validateScan =
         (
-            local clearedCount = 0
-            
+            if not scanComplete do throw "扫描未完整完成，请重新扫描。"
+            local currentSelection = selection as array
+            if currentSelection.count != scannedSelection.count do throw "场景选择已变化，请重新扫描。"
+            for obj in currentSelection do
+                if findItem scannedSelection obj == 0 do throw "场景选择已变化，请重新扫描。"
+            for i = 1 to objectsWithAnim.count do
+                if not sameTracks scannedPlans[i] (objectTracks objectsWithAnim[i]) do throw "轨道或关键帧已变化，请重新扫描。"
+            true
+        )
+        -- 返回删除数和错误，不把部分清理写成全部成功。
+        fn clearTracks tracks allowedNodes =
+        (
+            for track in tracks do
+                for node in refs.dependentNodes track[1] do
+                    if findItem allowedNodes node == 0 do throw ("轨道被范围外对象引用：" + node.name)
+            local removed = 0
+            local failures = #()
+            for track in tracks do
+            (
+                try
+                (
+                    local beforeCount = numKeys track[1]
+                    deleteKeys track[1] #allKeys
+                    local remaining = numKeys track[1]
+                    removed += beforeCount - remaining
+                    if remaining != 0 do throw "清理后仍有关键帧"
+                )
+                catch (append failures (getCurrentException()))
+            )
+            #(removed, failures)
+        )
+        fn clearScanned selectedObjs =
+        (
+            validateScan()
+            local tracks = #()
+            local seen = #()
+            for obj in selectedObjs do
+            (
+                local rowIndex = findItem objectsWithAnim obj
+                if rowIndex == 0 do throw "清理目标不在扫描结果中。"
+                for track in scannedPlans[rowIndex] where findItem seen track[1] == 0 do
+                (
+                    append seen track[1]
+                    append tracks track
+                )
+            )
+            local result
+            undo "MaxZJTools 清理 PRS 关键帧" on (result = clearTracks tracks selectedObjs)
+            scannedSelection = #()
+            scanComplete = false
+            result
+        )
+        fn runClear clearAll =
+        (
             try
             (
-                -- 清理位置动画
-                if obj.position.controller != undefined and obj.position.controller.keys != undefined then
+                validateScan()
+                dgvAnimInfo.EndEdit()
+                local chosen = #()
+                for i = 0 to dgvAnimInfo.Rows.Count - 1 do
+                    if clearAll or dgvAnimInfo.Rows.Item[i].Cells.Item[0].Value == true do append chosen objectsWithAnim[i+1]
+                if chosen.count == 0 do throw "请扫描并勾选要清理的对象。"
+                if queryBox ("将删除 " + (chosen.count as string) + " 个对象列表中的 PRS 关键帧。\n会改变动画和当前姿态；建议先另存场景副本。\n已完成修改纳入 Max 撤销，工具不保存文件。") title:"确认清理" do
                 (
-                    while obj.position.controller.keys.count > 0 do
-                    (
-                        deleteKey obj.position.controller 1
-                        clearedCount += 1
-                    )
-                )
-                
-                -- 清理旋转动画
-                if obj.rotation.controller != undefined and obj.rotation.controller.keys != undefined then
-                (
-                    while obj.rotation.controller.keys.count > 0 do
-                    (
-                        deleteKey obj.rotation.controller 1
-                        clearedCount += 1
-                    )
-                )
-                
-                -- 清理缩放动画
-                if obj.scale.controller != undefined and obj.scale.controller.keys != undefined then
-                (
-                    while obj.scale.controller.keys.count > 0 do
-                    (
-                        deleteKey obj.scale.controller 1
-                        clearedCount += 1
-                    )
+                    local result = clearScanned chosen
+                    local msg = "已删除关键帧: " + (result[1] as string) + "；失败轨道: " + (result[2].count as string)
+                    for reason in result[2] do format "[MaxZJTools.MeshChecker 1.0.1] %\n" reason
+                    scanSelectedObjects()
+                    txtDetails.text = msg + "\n失败详情见 Listener；已完成部分可使用 Max 撤销。"
+                    messageBox msg title:"清理结果"
                 )
             )
-            catch
-            (
-                format "清理 % 的动画时出错\n" obj.name
-            )
-            
-            return clearedCount
+            catch (messageBox (getCurrentException()) title:"清理未完成")
         )
-        
-        -- 事件：检查按钮
-        on btnScan pressed do
-        (
-            scanSelectedObjects()
-        )
-        
-        -- 事件：刷新按钮
-        on btnRefresh pressed do
-        (
-            scanSelectedObjects()
-        )
-        
-        -- 事件：清理选中对象
-        on btnClearSelected pressed do
-        (
-            if objectsWithAnim.count == 0 then
-            (
-                messageBox "没有可清理的对象！" title:"提示"
-                return()
-            )
-            
-            -- 获取选中的行
-            local selectedObjs = #()
-            for i = 0 to (dgvAnimInfo.Rows.Count - 1) do
-            (
-                if (dgvAnimInfo.Rows.Item[i].Cells.Item[0].Value) == true then
-                (
-                    append selectedObjs objectsWithAnim[i + 1]
-                )
-            )
-            
-            if selectedObjs.count == 0 then
-            (
-                messageBox "请在列表中勾选要清理的对象！" title:"提示"
-                return()
-            )
-            
-            local msg = "确定要清理 " + (selectedObjs.count as string) + " 个对象的动画关键帧吗？\n\n此操作无法撤销！"
-            if queryBox msg title:"确认清理" then
-            (
-                local totalCleared = 0
-                
-                with undo on
-                (
-                    for obj in selectedObjs do
-                    (
-                        totalCleared += clearObjectAnimation obj
-                    )
-                )
-                
-                messageBox ("成功清理 " + (totalCleared as string) + " 个关键帧！") title:"完成"
-                
-                -- 刷新显示
-                scanSelectedObjects()
-            )
-        )
-        
-        -- 事件：清理全部
-        on btnClearAll pressed do
-        (
-            if objectsWithAnim.count == 0 then
-            (
-                messageBox "没有可清理的对象！" title:"提示"
-                return()
-            )
-            
-            local msg = "确定要清理全部 " + (objectsWithAnim.count as string) + " 个对象的动画关键帧吗？\n\n此操作无法撤销！"
-            if queryBox msg title:"确认清理" then
-            (
-                local totalCleared = 0
-                
-                with undo on
-                (
-                    for obj in objectsWithAnim do
-                    (
-                        totalCleared += clearObjectAnimation obj
-                    )
-                )
-                
-                messageBox ("成功清理 " + (totalCleared as string) + " 个关键帧！") title:"完成"
-                
-                -- 刷新显示
-                scanSelectedObjects()
-            )
-        )
-        
+        on btnScan pressed do try (scanSelectedObjects()) catch (messageBox (getCurrentException()) title:"扫描失败")
+        on btnRefresh pressed do try (scanSelectedObjects()) catch (messageBox (getCurrentException()) title:"扫描失败")
+        on btnClearSelected pressed do runClear false
+        on btnClearAll pressed do runClear true
+
         -- 事件：选择行变化时显示详情
         on dgvAnimInfo SelectionChanged args do
         (
@@ -405,6 +371,9 @@
     -- 创建对话框
     try (closeRolloutFloater meshCheckerDialog) catch()
     
-    global meshCheckerDialog = newRolloutFloater "Mesh动画检查工具" 680 650
-    addRollout meshCheckerRollout meshCheckerDialog
+    if MaxZJTools_Headless != true do
+    (
+        meshCheckerDialog = newRolloutFloater "Mesh动画检查工具" 680 650
+        addRollout meshCheckerRollout meshCheckerDialog
+    )
 )

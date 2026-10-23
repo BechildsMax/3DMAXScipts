@@ -1,12 +1,16 @@
 ﻿-- MaxZJTools_Init.ms
 -- 主菜单初始化脚本 - 避免版本迭代导致的重名菜单问题
 -- 作者: MaxZJ
--- 版本: 1.7.0
--- 日期: 2026-10-13
+-- 包版本从 config/version.ini 读取
+-- 日期: 2026-10-23
 
 (
     global MaxZJTools_MenuName = "MaxZJTools"
-    global MaxZJTools_Version = "1.7.0"
+    local packageRoot = getFilenamePath (getThisScriptFilename()) + "..\\"
+    local versionFile = packageRoot + "config\\version.ini"
+    global MaxZJTools_Version = getINISetting versionFile "Version" "Version"
+    global MaxZJTools_VersionDate = getINISetting versionFile "Version" "Date"
+    if not ((dotNetClass "System.Text.RegularExpressions.Regex").IsMatch MaxZJTools_Version "^[0-9]+\\.[0-9]+\\.[0-9]+$") do throw "MaxZJTools: config/version.ini 缺失或版本无效。"
     -- 在 startup 脚本执行时计算工具目录，避免 macroscript 内 getThisScriptFilename() 返回 usermacros 路径
     global MaxZJTools_ToolsPath = getFilenamePath (getThisScriptFilename()) + "..\\tools\\"
 
@@ -157,7 +161,7 @@
         aboutText += "- 单骨骼替换工具\n"
         aboutText += "- 定点色写入工具\n\n"
         aboutText += "作者: MaxZJ\n"
-        aboutText += "日期: 2026-10-13"
+        aboutText += "日期: " + MaxZJTools_VersionDate
         
         messageBox aboutText title:"关于 MaxZJTools"
     )

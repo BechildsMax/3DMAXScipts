@@ -1,15 +1,18 @@
--- ReSetTexturesPath.ms
+﻿-- ReSetTexturesPath.ms
 -- 贴图路径重设工具
 -- 功能: 查找和修复场景中丢失的贴图文件
--- 版本: 1.0.0
--- 日期: 2026-01-05
+-- 版本: 1.0.1
+-- 日期: 2026-10-23
 
+global reSetTexturesRollout
+global MaxZJTools_Headless
+try (destroyDialog reSetTexturesRollout) catch ()
 (
     rollout reSetTexturesRollout "贴图路径重设工具" width:600 height:700
     (
         group "扫描选项"
         (
-            button btnScan "扫描丢失的贴图" width:550 height:40
+            button btnScan "扫描全场景丢失贴图" width:550 height:40
             label lblStatus "状态: 未扫描" align:#left
         )
         
@@ -52,48 +55,32 @@
         local missingBitmaps = #()
         local allBitmapNodes = #()
         
-        -- 递归获取材质中的所有贴图
-        fn getBitmapsFromMat m bmpArray =
+        -- 按材质/贴图引用去重，同时遍历 MultiMaterial 子材质。
+        fn getBitmapsFromMat m bmpArray visited =
         (
-            if m != undefined then
-            (
-                local numSubs = getNumSubTexmaps m
-                for i = 1 to numSubs do
-                (
-                    local subTex = getSubTexmap m i
-                    if subTex != undefined then
-                    (
-                        if classOf subTex == Bitmaptexture then
-                        (
-                            append bmpArray subTex
-                        )
-                        else
-                        (
-                            getBitmapsFromMat subTex bmpArray
-                        )
-                    )
-                )
-            )
+            if m == undefined or findItem visited m != 0 do return bmpArray
+            append visited m
+            if classOf m == Bitmaptexture do appendIfUnique bmpArray m
+            for i = 1 to getNumSubMtls m do getBitmapsFromMat (getSubMtl m i) bmpArray visited
+            for i = 1 to getNumSubTexmaps m do getBitmapsFromMat (getSubTexmap m i) bmpArray visited
+            bmpArray
         )
-        
-        -- 获取场景中所有贴图节点
         fn getAllBitmapTextures =
         (
             local bitmaps = #()
-            
-            -- 遍历场景中所有材质
-            for mat in sceneMaterials do
-            (
-                getBitmapsFromMat mat bitmaps
-            )
-            
-            return bitmaps
+            local visited = #()
+            for mat in sceneMaterials do getBitmapsFromMat mat bitmaps visited
+            bitmaps
         )
-        
+
         -- 扫描丢失的贴图
         fn scanMissingTextures =
         (
             missingBitmaps = #()
+            allBitmapNodes = #()
+            lstMissingFiles.items = #()
+            lblCount.text = "总计: 0 个丢失文件"
+            lblStatus.text = "状态: 扫描中"
             allBitmapNodes = getAllBitmapTextures()
             
             for bmp in allBitmapNodes do
@@ -130,6 +117,22 @@
             )
         )
         
+        fn runScan =
+        (
+            try (scanMissingTextures(); true)
+            catch
+            (
+                missingBitmaps = #()
+                allBitmapNodes = #()
+                lstMissingFiles.items = #()
+                lblCount.text = "扫描未完成"
+                lblStatus.text = "状态: 扫描失败；没有可执行清单"
+                format "[MaxZJTools.ReSetTexturesPath] 扫描失败：%\n" (getCurrentException())
+                messageBox (getCurrentException()) title:"贴图扫描失败"
+                false
+            )
+        )
+
         -- 获取选中的贴图
         fn getSelectedBitmaps =
         (
@@ -146,7 +149,7 @@
         -- 扫描按钮
         on btnScan pressed do
         (
-            scanMissingTextures()
+            runScan()
         )
         
         -- 浏览路径
@@ -159,138 +162,129 @@
             )
         )
         
-        -- 应用新路径
-        on btnSetPath pressed do
+        -- 预览项：贴图引用、旧路径、新路径、可执行状态。只更改引用，不移动文件。
+        fn buildPathPlan mode selected =
         (
-            if txtNewPath.text == "" then
+            local pathAPI = dotNetClass "System.IO.Path"
+            if mode == #folder do
             (
-                messageBox "请输入或选择新路径！" title:"提示"
-                return()
+                if not (pathAPI.IsPathRooted txtNewPath.text) do throw "新路径必须是绝对目录或 UNC 目录。"
+                if not ((dotNetClass "System.IO.Directory").Exists txtNewPath.text) do throw "目标目录不存在。"
             )
-            
-            if not doesFileExist txtNewPath.text then
+            if mode == #prefix and txtOldPrefix.text == "" and txtNewPrefix.text == "" do throw "请输入旧前缀或新前缀。"
+            if mode == #name and txtFind.text == "" do throw "查找文本不能为空。"
+            local plan = #()
+            local seen = #()
+            local liveMaps = getAllBitmapTextures()
+            for bmp in selected where findItem seen bmp == 0 do
             (
-                local result = queryBox ("路径不存在: " + txtNewPath.text + "\n\n是否继续？") title:"警告"
-                if not result then return()
-            )
-            
-            local selected = getSelectedBitmaps()
-            if selected.count == 0 then
-            (
-                messageBox "请选择要修改的贴图！" title:"提示"
-                return()
-            )
-            
-            undo "重设贴图路径" on
-            (
-                local successCount = 0
-                for bmp in selected do
+                append seen bmp
+                if findItem liveMaps bmp == 0 do throw "贴图已脱离当前场景材质，请重新扫描。"
+                local oldPath = bmp.filename
+                local folder = getFilenamePath oldPath
+                local fileName = filenameFromPath oldPath
+                local newName = fileName
+                local status = "可修改"
+                case mode of
                 (
-                    local fileName = filenameFromPath bmp.filename
-                    local newFullPath = txtNewPath.text + "\\" + fileName
-                    
-                    bmp.filename = newFullPath
-                    successCount += 1
-                )
-                
-                messageBox ("成功为 " + (successCount as string) + " 个贴图设置新路径") title:"完成"
-                scanMissingTextures()
-            )
-        )
-        
-        -- 替换前缀
-        on btnReplacePrefix pressed do
-        (
-            if txtOldPrefix.text == "" and txtNewPrefix.text == "" then
-            (
-                messageBox "请输入旧前缀或新前缀！" title:"提示"
-                return()
-            )
-            
-            local selected = getSelectedBitmaps()
-            if selected.count == 0 then
-            (
-                messageBox "请选择要修改的贴图！" title:"提示"
-                return()
-            )
-            
-            undo "替换贴图前缀" on
-            (
-                local successCount = 0
-                for bmp in selected do
-                (
-                    local filePath = getFilenamePath bmp.filename
-                    local fileName = filenameFromPath bmp.filename
-                    
-                    -- 如果有旧前缀，先移除
-                    if txtOldPrefix.text != "" then
+                    #folder: (folder = txtNewPath.text + "\\")
+                    #prefix:
                     (
-                        if (substring fileName 1 txtOldPrefix.text.count) == txtOldPrefix.text then
+                        if txtOldPrefix.text != "" then
                         (
-                            fileName = substring fileName (txtOldPrefix.text.count + 1) -1
+                            if (substring fileName 1 txtOldPrefix.text.count) == txtOldPrefix.text then
+                                newName = txtNewPrefix.text + substring fileName (txtOldPrefix.text.count + 1) -1
+                            else status = "跳过：旧前缀不匹配"
                         )
+                        else newName = txtNewPrefix.text + fileName
                     )
-                    
-                    -- 添加新前缀
-                    if txtNewPrefix.text != "" then
-                    (
-                        fileName = txtNewPrefix.text + fileName
-                    )
-                    
-                    bmp.filename = filePath + fileName
-                    successCount += 1
+                    #name: (newName = (substituteString (getFilenameFile fileName) txtFind.text txtReplace.text) + getFilenameType fileName)
+                    default: (throw "未知的路径操作。")
                 )
-                
-                messageBox ("成功为 " + (successCount as string) + " 个贴图替换前缀") title:"完成"
-                scanMissingTextures()
-            )
-        )
-        
-        -- 替换文件名
-        on btnReplaceName pressed do
-        (
-            if txtFind.text == "" then
-            (
-                messageBox "请输入要查找的文本！" title:"提示"
-                return()
-            )
-            
-            local selected = getSelectedBitmaps()
-            if selected.count == 0 then
-            (
-                messageBox "请选择要修改的贴图！" title:"提示"
-                return()
-            )
-            
-            undo "替换贴图文件名" on
-            (
-                local successCount = 0
-                for bmp in selected do
+                if newName == "" or pathAPI.GetFileName newName != newName do throw "替换结果必须是文件名，不能含目录。"
+                for invalid in #("<",">",":","\"","/","\\","|","?","*") do
+                    if findString newName invalid != undefined do throw "文件名包含非法字符。"
+                local newPath = folder + newName
+                if status == "可修改" do
                 (
-                    local filePath = getFilenamePath bmp.filename
-                    local fileName = filenameFromPath bmp.filename
-                    local fileExt = getFilenameType fileName
-                    local fileNameOnly = getFilenameFile fileName
-                    
-                    -- 替换文件名（不包括扩展名）
-                    local newFileName = substituteString fileNameOnly txtFind.text txtReplace.text
-                    
-                    if newFileName != fileNameOnly then
-                    (
-                        bmp.filename = filePath + newFileName + fileExt
-                        successCount += 1
-                    )
+                    if newPath == oldPath then status = "跳过：未变化"
+                    else if not doesFileExist newPath then status = "跳过：目标文件不存在"
                 )
-                
-                messageBox ("成功替换 " + (successCount as string) + " 个贴图的文件名") title:"完成"
-                scanMissingTextures()
+                append plan #(bmp, oldPath, newPath, status)
             )
+            -- 不同原路径合并到同一目标容易错贴，阻断并要求用户缩小选择。
+            for i = 1 to plan.count do
+                for j = 1 to plan.count where j > i and plan[i][4] == "可修改" and plan[j][4] == "可修改" do
+                    if toLower plan[i][3] == toLower plan[j][3] and toLower plan[i][2] != toLower plan[j][2] do
+                        throw ("不同源贴图映射到同一文件：" + plan[i][3] + "；请分别处理。")
+            plan
         )
-        
+        fn applyPathPlan plan =
+        (
+            local liveMaps = getAllBitmapTextures()
+            for row in plan do
+            (
+                if findItem liveMaps row[1] == 0 or row[1].filename != row[2] do throw "场景引用已变化，请重新预览。"
+                if row[4] == "可修改" and not doesFileExist row[3] do throw "预览后的目标文件已消失。"
+            )
+            local changed = 0
+            local found = 0
+            local skipped = 0
+            local failures = #()
+            undo "MaxZJTools 贴图引用修复" on
+            (
+                for row in plan do
+                    if row[4] != "可修改" then skipped += 1
+                    else try
+                    (
+                        row[1].filename = row[3]
+                        if row[1].filename != row[3] do throw "路径回读不一致"
+                        changed += 1
+                        if doesFileExist row[1].filename then found += 1
+                        else append failures (row[3] + ": 写入后文件不可访问")
+                    )
+                    catch (append failures (row[2] + ": " + getCurrentException()))
+            )
+            #(changed, found, skipped, failures)
+        )
+        fn runPathChange mode =
+        (
+            try
+            (
+                local selected = getSelectedBitmaps()
+                if selected.count == 0 do throw "请先扫描并选择贴图。"
+                local plan = buildPathPlan mode selected
+                local count = 0
+                for row in plan do
+                (
+                    format "[MaxZJTools.ReSetTexturesPath 1.0.1] % -> % [%]\n" row[2] row[3] row[4]
+                    if row[4] == "可修改" do count += 1
+                )
+                lstMissingFiles.items = for row in plan collect (row[2] + " -> " + row[3] + " [" + row[4] + "]")
+                -- 保持显示行与引用索引一致；取消后仍可再次修改参数。
+                missingBitmaps = for row in plan collect row[1]
+                lstMissingFiles.selection = #{1..(plan.count)}
+                if count == 0 do throw "没有可修改项：请检查列表中的缺失文件、匹配条件和路径。"
+                if queryBox ("将修改 " + (count as string) + " 个贴图引用，跳过 " + ((plan.count-count) as string) + " 项。\n完整旧/新路径和状态已列在面板及 Listener。\n共享贴图的所有使用者都会受影响；不复制图片、不保存场景。") title:"检查路径映射" do
+                (
+                    local result = applyPathPlan plan
+                    local msg = "引用已改: " + (result[1] as string) + "；文件已找到: " + (result[2] as string) + "；跳过: " + (result[3] as string) + "；失败: " + (result[4].count as string)
+                    for reason in result[4] do format "[MaxZJTools.ReSetTexturesPath 1.0.1] %\n" reason
+                    runScan()
+                    lblStatus.text = msg
+                    messageBox (msg + "\n已完成修改可使用 Max 撤销；不代表图片格式或内容已验证。") title:"路径修改结果"
+                )
+            )
+            catch (messageBox (getCurrentException()) title:"路径修改未完成")
+        )
+        on btnSetPath pressed do runPathChange #folder
+        on btnReplacePrefix pressed do runPathChange #prefix
+        on btnReplaceName pressed do runPathChange #name
+
         -- 刷新列表
         on btnRefresh pressed do
         (
-            scanMissingTextures()
+            runScan()
         )
         
         -- 全选
@@ -311,10 +305,10 @@
         -- 对话框打开时
         on reSetTexturesRollout open do
         (
-            scanMissingTextures()
+            lblStatus.text = "状态: 未扫描；点击按钮显式扫描全场景 Bitmaptexture"
         )
     )
     
     -- 创建并显示对话框
-    createDialog reSetTexturesRollout
+    if MaxZJTools_Headless != true do createDialog reSetTexturesRollout
 )
